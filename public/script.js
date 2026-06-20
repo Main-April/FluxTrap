@@ -7,15 +7,6 @@ var fileBuf = null;
 var recvChunks = [];
 var historyEntries = [];
 var STORAGE_KEY = 'wishare-history';
-var PEER_CONFIG = {
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
-      { urls: ['turn:openrelay.metered.ca:80', 'turns:openrelay.metered.ca:443'], username: 'openrelayproject', credential: 'openrelayproject' }
-    ]
-  }
-};
 
 function showToast(msg, level){
   level = level || 'info';
@@ -211,7 +202,7 @@ function onFile(f){
 
 function startPeer(){
   var code=genCode();
-    peer=new Peer(code,PEER_CONFIG);
+    peer=new Peer(code);
   var expireTimer;
   var connected=false;
 
@@ -239,7 +230,6 @@ function startPeer(){
     clearTimeout(expireTimer);
     connected=true;
     conn=c;
-    if(conn.dataChannel)conn.dataChannel.binaryType='arraybuffer';
     conn.on('open',function(){
       loading(true);
       showToast('Destinataire connecté — transfert en cours','ok');
@@ -326,10 +316,10 @@ function startReceive(code){
   msg('Connexion à '+code+'...','info');
   loading(true);
 
-  peer=new Peer(PEER_CONFIG);
+  peer=new Peer();
 
   peer.on('open',function(){
-    conn=peer.connect(code,{reliable:true});
+    conn=peer.connect(code,{reliable:true,serialization:'raw'});
     recvChunks=[];
 
     var timeout=setTimeout(function(){
@@ -345,7 +335,6 @@ function startReceive(code){
 
     conn.on('open',function(){
       clearTimeout(timeout);
-      if(conn.dataChannel)conn.dataChannel.binaryType='arraybuffer';
       showToast('Connecté à l\'expéditeur — réception en cours','ok');
       if(ui.progressText)ui.progressText.textContent='Connecté ! Réception...';
       msg('Réception du fichier...','info');
