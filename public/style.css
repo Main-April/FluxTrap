@@ -168,6 +168,10 @@ nav a:hover{color:var(--fg)}
 .stat-label i{color:var(--brand)}
 .stat-value{font-size:1.6rem;font-weight:600;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-top:4px}
 
+/* ── Subtle section divider ── */
+.page-inner section + section{border-top:1px solid var(--card-border);padding-top:32px;margin-top:32px}
+@media(max-width:768px){.page-inner section + section{padding-top:24px;margin-top:24px}}
+
 /* ── Section title ── */
 .section-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--brand);text-align:center}
 .section-title{font-size:1.6rem;font-weight:600;letter-spacing:-.02em;text-align:center;margin-top:4px}
