@@ -385,7 +385,7 @@ function startReceive(code){
       if(data instanceof ArrayBuffer){
         handleBinary(data);
       }else if(ArrayBuffer.isView(data)){
-        handleBinary(data.buffer);
+        handleBinary(data.slice().buffer);
       }else if(data instanceof Blob){
         pendingBlobs++;
         var r=new FileReader();
