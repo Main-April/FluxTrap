@@ -1,8 +1,6 @@
 {
   "name": "wishare",
   "version": "1.0.0",
-  "description": "Simple file sharing via QR code — upload, scan, download",
-  "scripts": {
-    "start": "node server.js"
-  }
+  "description": "Share files via QR code — upload, scan, download",
+  "private": true
 }

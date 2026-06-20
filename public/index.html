@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WiShare</title>
-<script src="qrcode.min.js" defer></script>
+<script src="qrcode.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -55,11 +55,14 @@ h1 {
 .hidden { display: none !important; }
 .status { color: #8b8fa3; font-size: 0.9rem; padding: 12px; }
 .dl-link {
-  display: inline-block; margin-top: 8px;
-  color: #6c5ce7; text-decoration: none; font-size: 0.85rem;
-  word-break: break-all;
+  display: block; margin-top: 8px;
+  color: #6c5ce7; font-size: 0.85rem; word-break: break-all;
 }
 footer { font-size: 0.75rem; color: #8b8fa3; opacity: 0.6; }
+.error-box {
+  padding: 12px; border-radius: 8px; background: rgba(231,76,60,0.1);
+  color: #e74c3c; font-size: 0.85rem; margin-top: 12px;
+}
 </style>
 </head>
 <body>
@@ -88,18 +91,19 @@ footer { font-size: 0.75rem; color: #8b8fa3; opacity: 0.6; }
       <div class="progress-bar hidden" id="progressWrap">
         <div class="progress-fill" id="progressFill"></div>
       </div>
+      <div class="error-box hidden" id="errorMsg"></div>
     </div>
 
     <div id="qrSection" class="hidden">
       <div class="qr-wrap" id="qrContainer"></div>
       <p class="qr-hint" id="qrHint">Scan with your phone to download</p>
-      <a class="dl-link hidden" id="dlLink" target="_blank">Open download link</a>
+      <a class="dl-link hidden" id="dlLink" target="_blank">Open link</a>
     </div>
 
     <div id="statusMsg" class="status hidden"></div>
   </div>
 
-  <footer>Files stay on your network &bull; No cloud &bull; Auto-deleted after 10 min</footer>
+  <footer>Powered by file.io &bull; Files expire after 1 download</footer>
 </div>
 
 <script>
@@ -117,14 +121,13 @@ var qrContainer = document.getElementById('qrContainer');
 var qrHint = document.getElementById('qrHint');
 var dlLink = document.getElementById('dlLink');
 var statusMsg = document.getElementById('statusMsg');
+var errorMsg = document.getElementById('errorMsg');
 
-var serverUrl = '__SERVER_URL__';
 var selectedFile = null;
 
 function fmtSize(bytes) {
   if (bytes === 0) return '0 B';
-  var k = 1024;
-  var sizes = ['B', 'KB', 'MB', 'GB'];
+  var k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
   var i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
@@ -132,14 +135,15 @@ function fmtSize(bytes) {
 function show(el) { el.classList.remove('hidden'); }
 function hide(el) { el.classList.add('hidden'); }
 
-function setStatus(text) {
-  statusMsg.textContent = text;
-  show(statusMsg);
+function setError(text) {
+  errorMsg.textContent = text;
+  show(errorMsg);
 }
+function clearError() { hide(errorMsg); }
 
 function selectFile(file) {
-  if (file.size > 500 * 1024 * 1024) {
-    alert('File too large (max 500 MB)');
+  if (file.size > 100 * 1024 * 1024) {
+    alert('File too large (max 100 MB)');
     return;
   }
   selectedFile = file;
@@ -150,7 +154,7 @@ function selectFile(file) {
   hide(dlLink);
   show(uploadSection);
   hide(progressWrap);
-  hide(statusMsg);
+  clearError();
 }
 
 function uploadFile() {
@@ -158,63 +162,62 @@ function uploadFile() {
   shareBtn.disabled = true;
   shareBtn.textContent = 'Uploading...';
   show(progressWrap);
-  hide(statusMsg);
-  hide(dlLink);
+  clearError();
 
-  var reader = new FileReader();
-  reader.onload = function (e) {
-    var base64 = e.target.result.split(',')[1];
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
-    xhr.setRequestHeader('Content-Type', 'application/json');
+  var formData = new FormData();
+  formData.append('file', selectedFile);
 
-    xhr.upload.onprogress = function (e) {
-      if (e.lengthComputable) {
-        progressFill.style.width = (e.loaded / e.total * 100) + '%';
-      }
-    };
+  var xhr = new XMLHttpRequest();
 
-    xhr.onload = function () {
-      if (xhr.status === 200) {
-        var result = JSON.parse(xhr.responseText);
+  xhr.upload.onprogress = function (e) {
+    if (e.lengthComputable) {
+      progressFill.style.width = (e.loaded / e.total * 100) + '%';
+    }
+  };
+
+  xhr.onload = function () {
+    try {
+      var result = JSON.parse(xhr.responseText);
+      if (result.success && result.link) {
         progressFill.style.width = '100%';
-        showQRCode(result);
+        showQRCode(result.link);
       } else {
-        setStatus('Upload failed: ' + (xhr.responseText || 'HTTP ' + xhr.status));
+        setError('Upload failed: service unavailable');
         shareBtn.disabled = false;
         shareBtn.textContent = 'Generate QR Code';
         hide(progressWrap);
       }
-    };
-
-    xhr.onerror = function () {
-      setStatus('Network error. Is the server running?');
+    } catch (e) {
+      setError('Upload failed: invalid response');
       shareBtn.disabled = false;
       shareBtn.textContent = 'Generate QR Code';
       hide(progressWrap);
-    };
-
-    xhr.send(JSON.stringify({
-      name: selectedFile.name,
-      size: selectedFile.size,
-      data: base64
-    }));
+    }
   };
-  reader.readAsDataURL(selectedFile);
+
+  xhr.onerror = function () {
+    setError('Network error. Check your connection.');
+    shareBtn.disabled = false;
+    shareBtn.textContent = 'Generate QR Code';
+    hide(progressWrap);
+  };
+
+  xhr.open('POST', 'https://file.io/api/upload');
+  xhr.send(formData);
 }
 
-function showQRCode(result) {
+function showQRCode(url) {
   hide(uploadSection);
   hide(progressWrap);
   show(qrSection);
-  qrHint.textContent = 'Scan with your phone to download ' + result.name;
-  dlLink.href = result.url;
-  dlLink.textContent = result.url;
+  qrHint.textContent = 'Scan with your phone to download';
+  dlLink.href = url;
+  dlLink.textContent = url;
   show(dlLink);
 
   qrContainer.innerHTML = '';
   new QRCode(qrContainer, {
-    text: result.url,
+    text: url,
     width: 200,
     height: 200,
     colorDark: '#000000',
