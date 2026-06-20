@@ -9,11 +9,10 @@
 <body>
 <div class="container">
   <h1>WiShare</h1>
-  <p class="subtitle">Peer-to-peer encrypted file sharing via QR code</p>
+  <p class="subtitle">Encrypted file sharing via QR code</p>
 
-  <div id="msgArea" class="msg hidden"></div>
+  <div id="status" class="msg hidden"></div>
 
-  <!-- Step 1: Select file -->
   <div id="stepSelect" class="card hidden">
     <div class="drop-zone" id="dropZone">
       <div class="drop-icon">📁</div>
@@ -24,9 +23,7 @@
     </div>
   </div>
 
-  <!-- Step 2: Send -->
-  <div id="stepSend" class="card hidden">
-    <div class="section-label">File selected</div>
+  <div id="stepUpload" class="card hidden">
     <div class="file-card">
       <span class="file-icon">📄</span>
       <div class="file-body">
@@ -34,52 +31,37 @@
         <div class="file-size" id="fileSize"></div>
       </div>
     </div>
-    <button class="btn btn-primary" id="sendBtn">Generate QR Code</button>
+    <button class="btn btn-primary" id="shareBtn">Encrypt & Generate QR Code</button>
     <div id="progressWrap" class="hidden">
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-text" id="progressText"></div>
+      <div class="progress-text" id="progressText">Preparing...</div>
     </div>
-    <div id="sendInfo" class="hidden"></div>
   </div>
 
-  <!-- Step 3: QR code -->
   <div id="stepQR" class="card hidden">
-    <div class="section-label">Share via QR code</div>
     <div class="qr-wrap" id="qrContainer"></div>
-    <p id="qrHint"></p>
-    <div class="btn-row">
-      <button class="btn btn-sm btn-outline hidden" id="scanBtn">📷 Scan answer QR</button>
-      <button class="btn btn-sm btn-outline hidden" id="manualBtn">⌨️ Enter code manually</button>
-    </div>
-    <div id="cameraWrap" class="hidden mt-8">
-      <video id="camera" autoplay playsinline muted></video>
-      <div class="btn-row">
-        <button class="btn btn-sm btn-outline" id="cameraClose">Cancel</button>
-      </div>
-    </div>
-    <div class="hidden mt-8" id="manualWrap">
-      <textarea class="code-input" id="codeInput" placeholder="Paste the answer code here..."></textarea>
-      <button class="btn btn-primary" id="codeApply">Apply Code</button>
-    </div>
-    <button class="btn btn-sm mt-8" id="cancelBtn">← Cancel</button>
+    <p id="qrHint">Scan with any phone to download</p>
+    <a id="dlLink" class="dl-link" target="_blank">Open download page</a>
   </div>
 
-  <!-- Step 4: Done -->
   <div id="stepDone" class="card hidden">
-    <div class="section-label">Complete</div>
-    <div id="recvCard" class="dl-card">
-      <span class="dl-icon">📥</span>
-      <div class="dl-body">
-        <div class="dl-name" id="recvName"></div>
-        <div class="dl-size" id="recvSize"></div>
+    <div id="recvProgress" class="hidden">
+      <div class="progress-bar"><div class="progress-fill" id="recvFill"></div></div>
+      <div class="progress-text" id="recvText">Downloading...</div>
+    </div>
+    <div id="recvCard" class="file-card hidden">
+      <span class="file-icon">📥</span>
+      <div class="file-body">
+        <div class="file-name" id="recvName"></div>
+        <div class="file-size" id="recvSize"></div>
       </div>
       <a class="dl-btn" id="recvDownload" download>Download</a>
     </div>
-    <button class="btn btn-primary mt-8" id="shareAgain">Share Another File</button>
+    <button class="btn btn-primary mt-8" id="shareAgain">Share a File</button>
   </div>
 
   <footer>
-    AES-256-GCM &bull; WebRTC DTLS &bull; No server &bull; No cloud
+    AES-256-GCM &bull; Encrypted before upload &bull; tmpfiles.org
   </footer>
 </div>
 
