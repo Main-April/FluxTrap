@@ -89,6 +89,8 @@ document.getElementById('clearHistory').onclick=function(){
 })();
 
 var ui = {};
+var loadingBar=document.getElementById('loadingBar');
+function loading(on){loadingBar.classList.toggle('active',on)}
 
 'status,stepMode,fileInput,stepFileInfo,fileName,fileSize,shareBtn,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain'.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
 ui.dropZone=ui.stepMode;
@@ -118,6 +120,7 @@ function genCode(){
 }
 
 function resetShare(){
+  loading(false);
   fileToSend=null;fileBuf=null;
   if(peer){peer.destroy();peer=null}
   conn=null;
@@ -172,12 +175,14 @@ ui.shareBtn.onclick=function(){
   ui.progressText.textContent='Connecting...';
   msg('Creating secure connection...','info');
 
+  loading(true);
   pushLog('info','Creating secure connection...');
 
   peer=new Peer();
 
   peer.on('open',function(id){
     SHARE_CODE=id;
+    loading(false);
     pushLog('ok','Peer ID: '+id+' — waiting for receiver');
     var reader=new FileReader();
     reader.onload=function(e){
@@ -197,6 +202,7 @@ ui.shareBtn.onclick=function(){
   peer.on('connection',function(c){
     conn=c;
     conn.on('open',function(){
+      loading(true);
       pushLog('ok','Receiver connected — starting transfer');
       hide(ui.stepCode);
       show(ui.progressWrap);
@@ -206,6 +212,7 @@ ui.shareBtn.onclick=function(){
   });
 
   peer.on('error',function(e){
+    loading(false);
     msg('Connection error. Try again.','err');
     ui.shareBtn.disabled=false;
     ui.shareBtn.textContent='Share';
@@ -222,6 +229,7 @@ function sendFile(){
     if(idx>=total||conn.readyState!=='open'){
       if(idx>=total){
         conn.send('DONE');
+        loading(false);
         ui.progressFill.style.width='100%';
         ui.progressText.textContent='Sent!';
         msg('File sent successfully!','ok');
@@ -257,6 +265,7 @@ function startReceive(code){
   show(ui.progressWrap);
   ui.progressText.textContent='Connecting...';
   msg('Connecting to '+code+'...','info');
+  loading(true);
 
   peer=new Peer();
 
@@ -267,6 +276,7 @@ function startReceive(code){
 
     var timeout=setTimeout(function(){
       if(!conn||!conn.open){
+        loading(false);
         msg('Connection timed out. Check the code.','err');
         pushLog('warn','Connection timed out for code: '+code);
         hide(ui.progressWrap);
@@ -308,6 +318,7 @@ function startReceive(code){
   });
 
   peer.on('error',function(e){
+    loading(false);
     if(e.type==='peer-unavailable'){
       msg('Code not found. Check the code and try again.','err');
     }else{
@@ -319,7 +330,8 @@ function startReceive(code){
 }
 
 function finishRecv(meta){
-  if(recvChunks.length===0){msg('No data received','err');return}
+  if(recvChunks.length===0){loading(false);msg('No data received','err');return}
+  loading(false);
   ui.progressFill.style.width='100%';
   ui.progressText.textContent='Complete!';
   var blob=new Blob(recvChunks);

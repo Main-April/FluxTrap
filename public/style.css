@@ -52,6 +52,21 @@ body{
 .animate-shimmer{background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);background-size:200% 100%;animation:shimmer 2.5s linear infinite}
 .animate-ping{animation:ping 1.4s cubic-bezier(0,0,0.2,1) infinite}
 
+/* ── YouTube loading bar ── */
+.loading-bar{position:fixed;top:0;left:0;right:0;height:3px;z-index:9999;pointer-events:none}
+.loading-bar{background:rgba(255,255,255,.05)}
+.loading-bar:not(.active){display:none}
+.loading-bar.active{display:block}
+.loading-bar::after{
+  content:'';display:block;height:100%;width:35%;
+  background:var(--gradient-brand);border-radius:0 3px 3px 0;
+  animation:loading-slide 1.1s ease-in-out infinite;
+}
+@keyframes loading-slide{
+  0%{transform:translateX(-100%)}
+  100%{transform:translateX(385%)}
+}
+
 /* ── Decor svg ── */
 .decor-svg{position:absolute;color:rgba(183,122,255,0.2);pointer-events:none;z-index:-1}
 
