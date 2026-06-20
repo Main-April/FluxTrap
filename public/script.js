@@ -2,12 +2,11 @@ var CHUNK = 65536;
 var SHARE_CODE = null;
 var peer = null;
 var conn = null;
-var fileToSend = null;
-var fileBuf = null;
+var sendQueue = [];
+var sendQueueIdx = 0;
+var sendFileBuf = null;
 var recvChunks = [];
-var recvBlob = null;
-var recvBlobName = '';
-var recvBlobUrl = null;
+var recvFiles = [];
 var historyEntries = [];
 var STORAGE_KEY = 'wishare-history';
 
@@ -154,12 +153,12 @@ function showFilePreview(file, container){
 
 function resetShare(){
   loading(false);
-  fileToSend=null;fileBuf=null;
+  sendQueue=[];sendQueueIdx=0;sendFileBuf=null;
   if(peer){peer.destroy();peer=null}
   conn=null;
   SHARE_CODE=null;
-  if(recvBlobUrl){URL.revokeObjectURL(recvBlobUrl);recvBlobUrl=null}
-  recvBlob=null;recvBlobName='';
+  recvFiles.forEach(function(f){if(f.url)URL.revokeObjectURL(f.url)});
+  recvFiles=[];
   if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML=''}
   if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
   hide(ui.stepCode);
@@ -178,33 +177,50 @@ ui.dropZone.ondragover=function(e){e.preventDefault();ui.dropZone.classList.add(
 ui.dropZone.ondragleave=function(){ui.dropZone.classList.remove('drag-over')};
 ui.dropZone.ondrop=function(e){
   e.preventDefault();ui.dropZone.classList.remove('drag-over');
-  if(e.dataTransfer.files.length)onFile(e.dataTransfer.files[0]);
+  if(e.dataTransfer.files.length)onFiles(Array.from(e.dataTransfer.files));
 };
 ui.fileInput.onchange=function(){
-  if(ui.fileInput.files.length)onFile(ui.fileInput.files[0]);
+  if(ui.fileInput.files.length)onFiles(Array.from(ui.fileInput.files));
 };
 
-function onFile(f){
-  if(f.size>500*1024*1024){showToast('Fichier trop volumineux (max 500 Mo)','warn');return}
-  fileToSend=f;
+function onFiles(files){
+  var valid=[];
+  for(var i=0;i<files.length;i++){
+    var f=files[i];
+    if(f.size>500*1024*1024){showToast(f.name+' trop volumineux (max 500 Mo)','warn');continue}
+    if(f.size===0){showToast(f.name+' vide, ignoré','warn');continue}
+    valid.push(f);
+  }
+  if(valid.length===0)return;
+  sendQueue=valid;
+  sendQueueIdx=0;
   hide(ui.stepMode);
   show(ui.stepCode);
-  if(ui.stepCodeBadge)ui.stepCodeBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Préparation...';
-  if(ui.stepCodeSub)ui.stepCodeSub.textContent = 'Lecture de ' + f.name + '...';
-  if(ui.codeDisplay)ui.codeDisplay.textContent = '---';
-  if(ui.qrContainer)ui.qrContainer.innerHTML = '';
-  showFilePreview(f, ui.filePreview);
   msg('','');
   hide(ui.status);
+  nextFile();
+}
 
+function nextFile(){
+  if(sendQueueIdx>=sendQueue.length){
+    showToast('Tous les fichiers envoyés !','ok');
+    showDone('sent');
+    return;
+  }
+  var f=sendQueue[sendQueueIdx];
+  if(ui.stepCodeBadge)ui.stepCodeBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Lecture ('+(sendQueueIdx+1)+'/'+sendQueue.length+')...';
+  if(ui.stepCodeSub)ui.stepCodeSub.textContent = f.name;
+  if(ui.codeDisplay)ui.codeDisplay.textContent='---';
+  if(ui.qrContainer)ui.qrContainer.innerHTML = '';
+  showFilePreview(f, ui.filePreview);
   loading(true);
   var reader=new FileReader();
   reader.onload=function(e){
-    fileBuf=new Uint8Array(e.target.result);
-    showToast('Fichier chargé : '+f.name+' ('+fmtSize(fileBuf.length)+')','ok');
+    sendFileBuf=new Uint8Array(e.target.result);
+    showToast(f.name+' ('+fmtSize(sendFileBuf.length)+') — '+(sendQueueIdx+1)+'/'+sendQueue.length,'ok');
     startPeer();
   };
-  reader.readAsArrayBuffer(fileToSend);
+  reader.readAsArrayBuffer(f);
 }
 
 function startPeer(){
@@ -247,8 +263,7 @@ function startPeer(){
       sendFile();
     });
     conn.on('close',function(){
-      console.warn('[WiShare][send] conn closed');
-      if(!fileToSend)return;
+      if(sendQueue.length===0)return;
       showToast('Connexion perdue','warn');
       msg('Connexion interrompue.','err');
       resetShare();
@@ -284,9 +299,10 @@ function startPeer(){
 }
 
 function sendFile(){
-  var total=Math.ceil(fileBuf.length/CHUNK);
-  var meta={type:'meta',name:fileToSend.name,size:fileToSend.size,total:total,mime:fileToSend.type||''};
-  console.log('[WiShare][send] sendFile start, total chunks=',total,'conn.open=',conn.open);
+  var f=sendQueue[sendQueueIdx];
+  if(!f)return;
+  var total=Math.ceil(sendFileBuf.length/CHUNK);
+  var meta={type:'meta',name:f.name,size:f.size,total:total,mime:f.type||''};
   conn.send(JSON.stringify(meta));
 
   var idx=0;
@@ -296,31 +312,54 @@ function sendFile(){
         try{conn.send('DONE')}catch(e){}
         loading(false);
         if(ui.progressFill)ui.progressFill.style.width='100%';
-        if(ui.progressText)ui.progressText.textContent='Envoyé !';
-        showToast('Fichier envoyé : '+fileToSend.name,'ok');
-        addHistory([{name:fileToSend.name,size:fileToSend.size,type:fileToSend.type}], fileToSend.size, 1);
-        showDone('sent');
-      }else{
-        console.warn('[WiShare][send] abandon à idx=',idx,'/',total,'conn.open=',conn.open);
+        if(ui.progressText)ui.progressText.textContent='Envoyé : '+f.name;
+        showToast(f.name+' envoyé ('+(sendQueueIdx+1)+'/'+sendQueue.length+')','ok');
+        addHistory([{name:f.name,size:f.size,type:f.type||''}], f.size, 1);
+        sendQueueIdx++;
+        setTimeout(function(){sendNextInQueue()},100);
       }
       return;
     }
-    var s=idx*CHUNK,e=Math.min(s+CHUNK,fileBuf.length);
-    try{conn.send(fileBuf.slice(s,e).buffer)}catch(err){console.error('[WiShare][send] erreur send chunk',idx,err);showToast('Erreur d\'envoi','warn');return}
+    var s=idx*CHUNK,e=Math.min(s+CHUNK,sendFileBuf.length);
+    try{conn.send(sendFileBuf.slice(s,e).buffer)}catch(err){showToast('Erreur d\'envoi','warn');return}
     idx++;
-    if(idx<=3||idx===total)console.log('[WiShare][send] chunk',idx,'/',total,'envoyé');
     if(ui.progressFill)ui.progressFill.style.width=Math.round(idx/total*100)+'%';
-    if(ui.progressText)ui.progressText.textContent='Envoi... '+idx+'/'+total;
+    if(ui.progressText)ui.progressText.textContent='('+(sendQueueIdx+1)+'/'+sendQueue.length+') Envoi... '+idx+'/'+total;
     setTimeout(next,10);
   }
   next();
 }
 
+function sendNextInQueue(){
+  if(sendQueueIdx>=sendQueue.length){
+    try{conn.send('ALL_DONE')}catch(e){}
+    showToast('Tous les fichiers envoyés !','ok');
+    showDone('sent');
+    return;
+  }
+  loading(true);
+  var f=sendQueue[sendQueueIdx];
+  if(ui.progressText)ui.progressText.textContent='Préparation de ' + f.name + '...';
+  var reader=new FileReader();
+  reader.onload=function(e){
+    sendFileBuf=new Uint8Array(e.target.result);
+    sendFile();
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+function retryPeer(){
+  if(peer)peer.destroy();
+  peer=null;conn=null;
+  startPeer();
+}
+
 function showDone(type){
   show(ui.stepDone);
   if(type==='sent'){
-    if(ui.recvName)ui.recvName.textContent=fileToSend.name;
-    if(ui.recvSize)ui.recvSize.textContent=fmtSize(fileToSend.size);
+    var tot=sendQueue.reduce(function(s,f){return s+f.size},0);
+    if(ui.recvName)ui.recvName.textContent=sendQueue.length+' fichier'+(sendQueue.length>1?'s':'')+' envoyé'+(sendQueue.length>1?'s':'');
+    if(ui.recvSize)ui.recvSize.textContent=fmtSize(tot);
     hide(ui.recvDownload);
   }
 }
@@ -333,8 +372,9 @@ function startReceive(code){
   if(ui.progressText)ui.progressText.textContent='Connexion...';
   msg('Connexion à '+code+'...','info');
   loading(true);
-  if(recvBlobUrl){URL.revokeObjectURL(recvBlobUrl);recvBlobUrl=null}
-  recvBlob=null;recvBlobName='';
+  recvFiles.forEach(function(f){if(f.url)URL.revokeObjectURL(f.url)});
+  recvFiles=[];
+  recvChunks=[];
   if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML=''}
   if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
 
@@ -365,36 +405,49 @@ function startReceive(code){
       msg('Réception du fichier...','info');
     });
     conn.on('close',function(){
-      console.warn('[WiShare][recv] conn closed, chunks reçus=',recvChunks.length);
-      loading(false);
-      showToast('Connexion perdue (expéditeur déconnecté)','warn');
-      msg('Connexion perdue — l\'expéditeur a peut-être expiré.','err');
-      hide(ui.progressWrap);
-      show(document.getElementById('panelRecv'));
+      if(recvFiles.length>0){
+        showRecvList();
+        showToast(recvFiles.length+' fichier'+(recvFiles.length>1?'s':'')+' reçu'+(recvFiles.length>1?'s':''),'ok');
+      }else{
+        loading(false);
+        showToast('Connexion perdue (expéditeur déconnecté)','warn');
+        msg('Connexion perdue — l\'expéditeur a peut-être expiré.','err');
+        hide(ui.progressWrap);
+        show(document.getElementById('panelRecv'));
+      }
       if(peer)peer.destroy();
     });
 
     var recvMeta=null;
+    var recvDone=false;
     var pendingBlobs=0;
 
     function handleBinary(buf){
+      if(recvDone)return;
       recvChunks.push(buf);
       var total=recvMeta?recvMeta.total:recvChunks.length;
       var pct=Math.round(recvChunks.length/total*100);
       if(ui.progressFill)ui.progressFill.style.width=Math.min(95,pct)+'%';
       if(ui.progressText)ui.progressText.textContent='Réception... '+recvChunks.length+' / '+(recvMeta?recvMeta.total:'?')+' paquets';
       if(recvMeta&&recvChunks.length>=recvMeta.total&&pendingBlobs===0){
-        finishRecv(recvMeta);
+        recvDone=true;finishRecv(recvMeta);
       }
     }
 
     conn.on('data',function(data){
-      console.log('[WiShare][recv] data reçu, type=', typeof data, data instanceof ArrayBuffer?'ArrayBuffer':(ArrayBuffer.isView(data)?'TypedArray':(data instanceof Blob?'Blob':typeof data)), data && data.byteLength!==undefined?data.byteLength:(data&&data.size!==undefined?data.size:''));
       if(typeof data==='string'){
-        if(data==='DONE'&&recvMeta){
-          if(pendingBlobs===0)finishRecv(recvMeta);
+        if(data==='ALL_DONE'){
+          showRecvList();
+          return;
+        }
+        if(data==='DONE'&&recvMeta&&!recvDone){
+          recvDone=true;if(pendingBlobs===0)finishRecv(recvMeta);
         }else{
-          try{var m=JSON.parse(data);if(m&&m.type==='meta'){recvMeta=m;if(ui.progressText)ui.progressText.textContent='Réception... 0 / '+m.total+' paquets';}}catch(e){}
+          try{var m=JSON.parse(data);if(m&&m.type==='meta'){
+            recvMeta=m;recvChunks=[];recvDone=false;
+            var idx=recvFiles.length+1;
+            if(ui.progressText)ui.progressText.textContent='['+idx+'/?) '+m.name+' 0/'+m.total;
+          }}catch(e){}
         }
         return;
       }
@@ -497,40 +550,63 @@ function renderPreview(kind, url, blob, name){
 }
 
 function shareOrDownload(e){
-  if(!recvBlob)return;
-  if(navigator.share && navigator.canShare){
-    try{
-      var file=new File([recvBlob], recvBlobName, {type:recvBlob.type||'application/octet-stream'});
-      if(navigator.canShare({files:[file]})){
-        e.preventDefault();
-        navigator.share({files:[file], title:recvBlobName}).catch(function(){});
-        return;
-      }
-    }catch(err){console.warn('[WiShare][recv] navigator.share indisponible, fallback lien direct',err)}
+  if(recvFiles.length===0)return;
+  if(recvFiles.length===1){
+    var f=recvFiles[0];
+    if(navigator.share && navigator.canShare){
+      try{
+        var file=new File([f.blob], f.name, {type:f.mime||'application/octet-stream'});
+        if(navigator.canShare({files:[file]})){
+          e.preventDefault();
+          navigator.share({files:[file], title:f.name}).catch(function(){});
+          return;
+        }
+      }catch(err){}
+    }
   }
-  // sinon on laisse le comportement natif de <a download> faire son travail (desktop / Android Chrome)
 }
 
 function finishRecv(meta){
   if(recvChunks.length===0){loading(false);showToast('Aucune donnée reçue','warn');return}
-  loading(false);
-  if(ui.progressFill)ui.progressFill.style.width='100%';
-  if(ui.progressText)ui.progressText.textContent='Terminé !';
   var mime=(meta&&meta.mime)||guessMimeFromName(meta?meta.name:'')||'application/octet-stream';
   var blob=new Blob(recvChunks,{type:mime});
-  if(recvBlobUrl)URL.revokeObjectURL(recvBlobUrl);
   var url=URL.createObjectURL(blob);
   var name=meta?meta.name:'fichier_recu';
-  recvBlob=blob;recvBlobName=name;recvBlobUrl=url;
-  if(ui.recvName)ui.recvName.textContent=name;
-  if(ui.recvSize)ui.recvSize.textContent=fmtSize(blob.size);
-  if(ui.recvDownload){ui.recvDownload.href=url;ui.recvDownload.download=name}
-  setupPreview(mime, url, blob, name);
+  recvFiles.push({name:name,size:blob.size,mime:mime,url:url,blob:blob});
+  recvChunks=[];
+  if(ui.progressFill)ui.progressFill.style.width='100%';
+  var idx=recvFiles.length;
+  if(ui.progressText)ui.progressText.textContent='['+idx+'/?] '+name+' reçu !';
+  showToast(name+' reçu ('+idx+' fichier'+(idx>1?'s':'')+')','ok');
+  showRecvList();
+}
+
+function showRecvList(){
+  if(!ui.recvName||!ui.recvSize)return;
+  loading(false);
+  var totalSize=recvFiles.reduce(function(s,f){return s+f.size},0);
+  ui.recvName.textContent=recvFiles.length+' fichier'+(recvFiles.length>1?'s':'')+' reçu'+(recvFiles.length>1?'s':'');
+  ui.recvSize.textContent=fmtSize(totalSize);
+  var html='';
+  for(var i=0;i<recvFiles.length;i++){
+    var f=recvFiles[i];
+    html+='<div class="recv-file"><span class="recv-file-icon"><i class="'+getFileIcon(f.mime)+'"></i></span><span class="recv-file-name">'+escHtml(f.name)+'</span><span class="recv-file-size">'+fmtSize(f.size)+'</span><a class="recv-file-dl" href="'+f.url+'" download="'+escHtml(f.name)+'"><i class="fa-solid fa-download"></i></a></div>';
+  }
+  var box=document.getElementById('recvFileList');
+  if(box)box.innerHTML=html;
+  if(recvFiles.length===1){
+    var last=recvFiles[0];
+    if(ui.recvDownload){ui.recvDownload.href=last.url;ui.recvDownload.download=last.name}
+    setupPreview(last.mime, last.url, last.blob, last.name);
+    show(ui.recvDownload);
+  }else{
+    hide(ui.recvDownload);
+    if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
+  }
   hide(ui.progressWrap);
   show(ui.stepDone);
-  show(ui.recvDownload);
-  showToast('Fichier reçu : '+name,'ok');
-  msg('Fichier reçu !','ok');
+  msg('','');
+  hide(ui.status);
 }
 
 // ---- Initialisation ----

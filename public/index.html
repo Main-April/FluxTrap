@@ -81,8 +81,8 @@
           <h3>Déposez un fichier ici</h3>
           <p>Fichiers multiples &amp; dossiers supportés &middot; Jusqu'à 500 Mo</p>
           <div class="btn-row">
-            <input type="file" id="fileInput" class="hidden">
-            <button class="btn primary" type="button"><i class="fa-solid fa-file-arrow-up"></i> Choisir un fichier</button>
+            <input type="file" id="fileInput" class="hidden" multiple>
+            <button class="btn primary" type="button"><i class="fa-solid fa-file-arrow-up"></i> Choisir des fichiers</button>
           </div>
           <div class="features">
             <span><i class="fa-solid fa-lock"></i> Chiffré</span>
@@ -131,9 +131,10 @@
           <div style="margin-top:16px">
             <p style="font-weight:600;font-size:1.1rem" id="recvName"></p>
             <p style="color:var(--muted);font-size:14px" id="recvSize"></p>
+            <div id="recvFileList" style="margin-top:12px"></div>
           </div>
           <div class="btn-group" style="margin-top:16px">
-            <a class="download-link hidden" id="recvDownload" download><i class="fa-solid fa-download"></i> Télécharger</a>
+            <a class="download-link hidden" id="recvDownload" download><i class="fa-solid fa-download"></i> Télécharger tout</a>
             <button class="btn ghost small hidden" id="recvPreviewBtn" type="button"><i class="fa-solid fa-eye"></i> Aperçu</button>
             <button class="btn primary" id="shareAgain"><i class="fa-solid fa-arrow-rotate-left"></i> Nouvel envoi</button>
           </div>
