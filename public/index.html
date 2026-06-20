@@ -103,7 +103,7 @@ footer { font-size: 0.75rem; color: #8b8fa3; opacity: 0.6; }
     <div id="statusMsg" class="status hidden"></div>
   </div>
 
-  <footer>Powered by file.io &bull; Files expire after 1 download</footer>
+  <footer>Powered by tmpfiles.org &bull; Files expire after 1 hour</footer>
 </div>
 
 <script>
@@ -157,6 +157,16 @@ function selectFile(file) {
   clearError();
 }
 
+var UPLOAD_SERVICE = {
+  url: 'https://tmpfiles.org/api/v1/upload',
+  parse: function (r) {
+    if (r.status === 'success' && r.data && r.data.url) {
+      return r.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+    }
+    return null;
+  }
+};
+
 function uploadFile() {
   if (!selectedFile) return;
   shareBtn.disabled = true;
@@ -171,28 +181,24 @@ function uploadFile() {
 
   xhr.upload.onprogress = function (e) {
     if (e.lengthComputable) {
-      progressFill.style.width = (e.loaded / e.total * 100) + '%';
+      progressFill.style.width = Math.min(90, (e.loaded / e.total * 100)) + '%';
     }
   };
 
   xhr.onload = function () {
     try {
       var result = JSON.parse(xhr.responseText);
-      if (result.success && result.link) {
+      var url = UPLOAD_SERVICE.parse(result);
+      if (url) {
         progressFill.style.width = '100%';
-        showQRCode(result.link);
-      } else {
-        setError('Upload failed: service unavailable');
-        shareBtn.disabled = false;
-        shareBtn.textContent = 'Generate QR Code';
-        hide(progressWrap);
+        showQRCode(url);
+        return;
       }
-    } catch (e) {
-      setError('Upload failed: invalid response');
-      shareBtn.disabled = false;
-      shareBtn.textContent = 'Generate QR Code';
-      hide(progressWrap);
-    }
+    } catch (e) {}
+    setError('Upload failed. Try again.');
+    shareBtn.disabled = false;
+    shareBtn.textContent = 'Generate QR Code';
+    hide(progressWrap);
   };
 
   xhr.onerror = function () {
@@ -202,7 +208,7 @@ function uploadFile() {
     hide(progressWrap);
   };
 
-  xhr.open('POST', 'https://file.io/api/upload');
+  xhr.open('POST', UPLOAD_SERVICE.url);
   xhr.send(formData);
 }
 
