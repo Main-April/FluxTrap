@@ -5,30 +5,19 @@ var conn = null;
 var fileToSend = null;
 var fileBuf = null;
 var recvChunks = [];
-var logs = [];
 var historyEntries = [];
-var logCount = 0;
 var STORAGE_KEY = 'wishare-history';
 
-function pushLog(level, msg){
-  var id = Date.now() + '-' + (Math.random()*1e6|0);
-  var ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  logs = [{id:id,ts:ts,level:level,msg:msg}].concat(logs).slice(0,30);
-  renderLogs();
-}
-
-function renderLogs(){
-  var list = document.getElementById('logList');
-  document.getElementById('logCount').textContent = logs.length + ' événement' + (logs.length > 1 ? 's' : '');
-  if(logs.length===0){
-    list.innerHTML = '<div class="empty"><i class="fa-regular fa-folder-open" style="font-size:1.4rem;display:block;margin-bottom:8px;color:rgba(183,122,255,0.4)"></i>Aucun événement...</div>';
-    return;
-  }
-  var html = '';
-  logs.forEach(function(l){
-    html += '<div class="log-item"><span class="log-time">'+l.ts+'</span><span class="log-level '+l.level+'">'+l.level+'</span><span class="log-msg">'+l.msg+'</span></div>';
-  });
-  list.innerHTML = html;
+function showToast(msg, level){
+  level = level || 'info';
+  var icons = {info:'fa-solid fa-circle-info',ok:'fa-solid fa-circle-check',warn:'fa-solid fa-circle-exclamation'};
+  var icon = icons[level] || icons.info;
+  var c = document.getElementById('toastContainer');
+  var el = document.createElement('div');
+  el.className = 'toast ' + level;
+  el.innerHTML = '<span class="toast-icon"><i class="' + icon + '"></i></span><span class="toast-msg">' + msg + '</span>';
+  c.appendChild(el);
+  setTimeout(function(){el.classList.add('out');setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},300)},3500);
 }
 
 function addHistory(files, size, count){
@@ -75,7 +64,7 @@ document.getElementById('clearHistory').onclick=function(){
   try{localStorage.removeItem(STORAGE_KEY)}catch(e){}
   renderHistory();
   updateStats();
-  pushLog('warn','Historique effacé');
+  showToast('Historique effacé','warn');
 };
 
 (function(){
@@ -85,14 +74,15 @@ document.getElementById('clearHistory').onclick=function(){
   }catch(e){}
   renderHistory();
   updateStats();
-  pushLog('info','Session démarrée — prêt à partager');
+  showToast('WiShare prêt','ok');
 })();
 
 var ui = {};
 var loadingBar=document.getElementById('loadingBar');
 function loading(on){loadingBar.classList.toggle('active',on)}
 
-'status,stepMode,fileInput,stepFileInfo,fileName,fileSize,shareBtn,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain'.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
+var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub';
+ids.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
 ui.dropZone=ui.stepMode;
 
 function show(el){el.classList.remove('hidden')}
@@ -127,19 +117,14 @@ function resetShare(){
   if(peer){peer.destroy();peer=null}
   conn=null;
   SHARE_CODE=null;
-  hide(ui.stepFileInfo);
   hide(ui.stepCode);
   hide(ui.progressWrap);
   hide(ui.stepDone);
   show(ui.stepMode);
-  ui.shareBtn.disabled=false;
-  ui.shareBtn.textContent='Partager';
   ui.codeDisplay.textContent='---';
   msg('','');
   hide(ui.status);
 }
-
-document.getElementById('backBtn').onclick=resetShare;
 
 // ---- Envoi ----
 
@@ -155,104 +140,91 @@ ui.fileInput.onchange=function(){
 };
 
 function onFile(f){
-  if(f.size>500*1024*1024){alert('Fichier trop volumineux (max 500 Mo)');return}
+  if(f.size>500*1024*1024){showToast('Fichier trop volumineux (max 500 Mo)','warn');return}
   fileToSend=f;
-  ui.fileName.textContent=f.name;
-  ui.fileSize.textContent=fmtSize(f.size);
-  hide(ui.dropZone);
-  show(ui.stepFileInfo);
-  hide(ui.stepCode);
-  hide(ui.stepDone);
-  hide(ui.progressWrap);
+  hide(ui.stepMode);
+  show(ui.stepCode);
+  ui.stepCodeBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Préparation...';
+  ui.stepCodeSub.textContent = 'Lecture de ' + f.name + '...';
+  ui.codeDisplay.textContent = '---';
+  ui.qrContainer.innerHTML = '';
   msg('','');
   hide(ui.status);
-  pushLog('info','Fichier sélectionné: '+f.name+' ('+fmtSize(f.size)+')');
-}
-
-ui.shareBtn.onclick=function(){
-  if(!fileToSend)return;
-  ui.shareBtn.disabled=true;
-  ui.shareBtn.textContent='Préparation...';
-  show(ui.progressWrap);
-  ui.progressText.textContent='Lecture du fichier...';
-  msg('Préparation du fichier...','info');
 
   loading(true);
-  pushLog('info','Lecture du fichier...');
-
   var reader=new FileReader();
   reader.onload=function(e){
     fileBuf=new Uint8Array(e.target.result);
-    pushLog('ok','Fichier chargé ('+fmtSize(fileBuf.length)+')');
+    showToast('Fichier chargé : '+f.name+' ('+fmtSize(fileBuf.length)+')','ok');
     startPeer();
   };
   reader.readAsArrayBuffer(fileToSend);
+}
 
-  function startPeer(){
-    var code=genCode();
+function startPeer(){
+  var code=genCode();
+  peer=new Peer(code);
+  var expireTimer;
+
+  function showCode(){
+    SHARE_CODE=code;
+    ui.codeDisplay.textContent=code;
+    hide(ui.progressWrap);
+    hide(ui.stepDone);
+    ui.stepCodeBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Prêt à partager';
+    ui.stepCodeSub.textContent = 'Code : ' + code + ' — scannez le QR ou partagez le code';
+    var url=location.origin+location.pathname.replace(/\/+$/,'')+'#'+code;
+    makeQR(url);
+    loading(false);
+
+    expireTimer=setTimeout(function(){
+      showToast('Code expiré (15 min)','warn');
+      msg('Le code a expiré. Réessayez.','err');
+      resetShare();
+    },15*60*1000);
+  }
+
+  function retryPeer(){
+    code=genCode();
+    peer.destroy();
     peer=new Peer(code);
-    var expireTimer;
-
-    function showCode(){
-      SHARE_CODE=code;
-      ui.codeDisplay.textContent=code;
-      hide(ui.stepFileInfo);
-      hide(ui.progressWrap);
-      show(ui.stepCode);
-
-      var url=location.origin+location.pathname.replace(/\/+$/,'')+'#'+code;
-      makeQR(url);
-      msg('Code : '+code+' — Partez ce code ou scannez le QR','ok');
-
-      expireTimer=setTimeout(function(){
-        pushLog('warn','Code expiré (15 min)');
-        msg('Le code a expiré. Réessayez.','err');
-        resetShare();
-      },15*60*1000);
-    }
-
-    function retryPeer(){
-      code=genCode();
-      peer.destroy();
-      peer=new Peer(code);
-      peer.on('open',function(){pushLog('ok','Code : '+code);showCode();});
-      peer.on('connection',onConnection);
-      peer.on('error',function(e){
-        if(e.type==='unavailable-id')retryPeer();
-        else{loading(false);msg('Erreur de connexion. Réessayez.','err');ui.shareBtn.disabled=false;ui.shareBtn.textContent='Partager';}
-      });
-    }
-
-    function onConnection(c){
-      clearTimeout(expireTimer);
-      conn=c;
-      conn.on('open',function(){
-        loading(true);
-        pushLog('ok','Destinataire connecté — transfert en cours');
-        hide(ui.stepCode);
-        show(ui.progressWrap);
-        ui.progressText.textContent='Connecté ! Envoi en cours...';
-        sendFile();
-      });
-      conn.on('close',function(){
-        if(!fileToSend)return;
-        pushLog('warn','Connexion perdue');
-        msg('Connexion interrompue.','err');
-        resetShare();
-      });
-    }
-
-    peer.on('open',function(){
-      pushLog('ok','Code : '+code);
-      showCode();
-    });
+    peer.on('open',function(){showToast('Nouveau code : '+code,'ok');showCode();});
     peer.on('connection',onConnection);
     peer.on('error',function(e){
       if(e.type==='unavailable-id')retryPeer();
-      else{loading(false);msg('Erreur de connexion. Réessayez.','err');ui.shareBtn.disabled=false;ui.shareBtn.textContent='Partager';}
+      else{loading(false);showToast('Erreur : '+e.type,'warn');}
     });
   }
-};
+
+  function onConnection(c){
+    clearTimeout(expireTimer);
+    conn=c;
+    conn.on('open',function(){
+      loading(true);
+      showToast('Destinataire connecté — transfert en cours','ok');
+      hide(ui.stepCode);
+      show(ui.progressWrap);
+      ui.progressText.textContent='Connecté ! Envoi en cours...';
+      sendFile();
+    });
+    conn.on('close',function(){
+      if(!fileToSend)return;
+      showToast('Connexion perdue','warn');
+      msg('Connexion interrompue.','err');
+      resetShare();
+    });
+  }
+
+  peer.on('open',function(){
+    showToast('Code : '+code,'ok');
+    showCode();
+  });
+  peer.on('connection',onConnection);
+  peer.on('error',function(e){
+    if(e.type==='unavailable-id')retryPeer();
+    else{loading(false);showToast('Erreur : '+e.type,'warn');}
+  });
+}
 
 function sendFile(){
   var total=Math.ceil(fileBuf.length/CHUNK);
@@ -267,8 +239,7 @@ function sendFile(){
         loading(false);
         ui.progressFill.style.width='100%';
         ui.progressText.textContent='Envoyé !';
-        msg('Fichier envoyé avec succès !','ok');
-        pushLog('ok','Envoyé '+fileToSend.name+' ('+fmtSize(fileToSend.size)+')');
+        showToast('Fichier envoyé : '+fileToSend.name,'ok');
         addHistory([{name:fileToSend.name,size:fileToSend.size,type:fileToSend.type}], fileToSend.size, 1);
         showDone('sent');
       }
@@ -305,15 +276,14 @@ function startReceive(code){
   peer=new Peer();
 
   peer.on('open',function(){
-    pushLog('info','Connexion au pair: '+code);
     conn=peer.connect(code,{reliable:true});
     recvChunks=[];
 
     var timeout=setTimeout(function(){
       if(!conn||!conn.open){
         loading(false);
+        showToast('Délai dépassé pour le code : '+code,'warn');
         msg('Délai de connexion dépassé. Vérifiez le code.','err');
-        pushLog('warn','Délai dépassé pour le code: '+code);
         hide(ui.progressWrap);
         show(document.getElementById('panelRecv'));
         if(peer)peer.destroy();
@@ -322,14 +292,14 @@ function startReceive(code){
 
     conn.on('open',function(){
       clearTimeout(timeout);
-      pushLog('ok','Connecté à l\'expéditeur — réception en cours');
+      showToast('Connecté à l\'expéditeur — réception en cours','ok');
       ui.progressText.textContent='Connecté ! Réception...';
       msg('Réception du fichier...','info');
     });
     conn.on('close',function(){
       loading(false);
+      showToast('Connexion perdue (expéditeur déconnecté)','warn');
       msg('Connexion perdue — l\'expéditeur a peut-être expiré.','err');
-      pushLog('warn','Connexion perdue (expéditeur déconnecté)');
       hide(ui.progressWrap);
       show(document.getElementById('panelRecv'));
       if(peer)peer.destroy();
@@ -364,8 +334,10 @@ function startReceive(code){
   peer.on('error',function(e){
     loading(false);
     if(e.type==='peer-unavailable'){
+      showToast('Code introuvable','warn');
       msg('Code introuvable. Vérifiez le code et réessayez.','err');
     }else{
+      showToast('Erreur : '+e.type,'warn');
       msg('Erreur: '+e.type,'err');
     }
     hide(ui.progressWrap);
@@ -374,7 +346,7 @@ function startReceive(code){
 }
 
 function finishRecv(meta){
-  if(recvChunks.length===0){loading(false);msg('Aucune donnée reçue','err');return}
+  if(recvChunks.length===0){loading(false);showToast('Aucune donnée reçue','warn');return}
   loading(false);
   ui.progressFill.style.width='100%';
   ui.progressText.textContent='Terminé !';
@@ -388,8 +360,8 @@ function finishRecv(meta){
   hide(ui.progressWrap);
   show(ui.stepDone);
   show(ui.recvDownload);
+  showToast('Fichier reçu : '+name,'ok');
   msg('Fichier reçu !','ok');
-  pushLog('ok','Reçu '+name+' ('+fmtSize(blob.size)+')');
 }
 
 // ---- Initialisation ----
@@ -432,7 +404,7 @@ ui.codeInput.addEventListener('keydown',function(e){
   }
 });
 ui.codeInput.addEventListener('input',function(){
-  this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
 });
 
 ui.shareAgain.onclick=function(){document.getElementById('tabShare').click()};

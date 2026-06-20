@@ -9,6 +9,7 @@
 </head>
 <body>
 <div class="page-wrap bg-noise">
+  <div id="toastContainer"></div>
   <div class="loading-bar" id="loadingBar"></div>
   <div class="bg-grid" aria-hidden></div>
   <div class="blob blob-1" aria-hidden></div>
@@ -26,7 +27,7 @@
       </div>
       <nav>
         <a href="#upload"><i class="fa-solid fa-upload"></i> Envoyer</a>
-        <a href="#activity"><i class="fa-solid fa-chart-simple"></i> Activité</a>
+        <a href="#recv"><i class="fa-solid fa-arrow-down-to-bracket"></i> Recevoir</a>
         <a href="https://github.com/Main-April/WiShare/tree/main" target="_blank"><i class="fa-brands fa-github"></i> GitHub</a>
       </nav>
     </div>
@@ -42,7 +43,7 @@
         Transferts pair-à-pair &middot; Sans inscription
       </div>
       <h1>Partagez tout, <span class="gradient-text">en un scan.</span></h1>
-      <p>Déposez des fichiers ou dossiers. Un code et un QR sont générés pour que vos destinataires puissent télécharger sur n'importe quel appareil.</p>
+      <p>Déposez un fichier. Un code et un QR sont générés instantanément.</p>
       <div class="stats" id="statsRow">
         <div class="stat-card">
           <div class="shimmer"></div>
@@ -62,117 +63,80 @@
       </div>
     </section>
 
-    <section id="upload" class="content-grid">
-      <div>
-        <div id="status" class="msg hidden"></div>
+    <section id="upload" style="margin-top:40px">
+      <div id="status" class="msg hidden"></div>
 
-        <div class="tabs">
-          <button class="tab active" id="tabShare"><i class="fa-solid fa-arrow-up-from-bracket"></i> Envoyer</button>
-          <button class="tab" id="tabRecv"><i class="fa-solid fa-arrow-down-to-bracket"></i> Recevoir</button>
-        </div>
+      <div class="tabs">
+        <button class="tab active" id="tabShare"><i class="fa-solid fa-arrow-up-from-bracket"></i> Envoyer</button>
+        <button class="tab" id="tabRecv"><i class="fa-solid fa-arrow-down-to-bracket"></i> Recevoir</button>
+      </div>
 
-        <div id="panelShare">
-          <div id="stepMode" class="drop-zone">
-            <div class="radial-bg"></div>
-            <div class="drop-icon-wrap">
-              <div class="drop-icon-ring"></div>
-              <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-            </div>
-            <h3>Déposez vos fichiers ici</h3>
-            <p>Fichiers multiples &amp; dossiers supportés &middot; Jusqu'à 500 Mo</p>
-            <div class="btn-row">
-              <input type="file" id="fileInput" class="hidden">
-              <button class="btn primary" type="button"><i class="fa-solid fa-file-arrow-up"></i> Choisir des fichiers</button>
-            </div>
-            <div class="features">
-              <span><i class="fa-solid fa-lock"></i> Chiffré</span>
-              <span><i class="fa-solid fa-bolt"></i> Code instantané</span>
-              <span><i class="fa-solid fa-clock"></i> P2P direct</span>
-            </div>
+      <div id="panelShare">
+        <div id="stepMode" class="drop-zone">
+          <div class="radial-bg"></div>
+          <div class="drop-icon-wrap">
+            <div class="drop-icon-ring"></div>
+            <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
           </div>
-
-          <div id="stepFileInfo" class="result-card hidden">
-            <div class="radial-bg"></div>
-            <div class="relative">
-              <div class="result-header">
-                <div>
-                  <div class="badge-ready"><i class="fa-solid fa-file"></i> Fichier sélectionné</div>
-                  <p style="font-size:1.2rem;font-weight:600;margin-top:8px" id="fileName"></p>
-                  <p style="color:var(--muted);font-size:14px" id="fileSize"></p>
-                </div>
-              </div>
-              <div class="btn-group" style="margin-top:16px">
-                <button class="btn primary" id="shareBtn"><i class="fa-solid fa-share-nodes"></i> Partager</button>
-                <button class="btn ghost" id="backBtn"><i class="fa-solid fa-arrow-rotate-left"></i> Retour</button>
-              </div>
-            </div>
+          <h3>Déposez un fichier ici</h3>
+          <p>Fichiers multiples &amp; dossiers supportés &middot; Jusqu'à 500 Mo</p>
+          <div class="btn-row">
+            <input type="file" id="fileInput" class="hidden">
+            <button class="btn primary" type="button"><i class="fa-solid fa-file-arrow-up"></i> Choisir un fichier</button>
           </div>
-
-          <div id="stepCode" class="result-card hidden">
-            <div class="radial-bg"></div>
-            <div class="relative">
-              <div class="badge-ready"><i class="fa-solid fa-circle-check"></i> Prêt à partager</div>
-              <p style="font-size:14px;color:var(--muted);margin-top:12px">Partagez ce code ou scannez le QR</p>
-              <div class="code-display" id="codeDisplay" style="margin-top:8px;font-size:1.6rem;user-select:all">---</div>
-              <div style="margin-top:16px;display:flex;justify-content:center" id="qrContainer"></div>
-              <div class="btn-group" style="justify-content:center;margin-top:16px">
-                <button class="btn ghost small" id="cancelShare"><i class="fa-solid fa-xmark"></i> Annuler</button>
-              </div>
-            </div>
+          <div class="features">
+            <span><i class="fa-solid fa-lock"></i> Chiffré</span>
+            <span><i class="fa-solid fa-bolt"></i> Code instantané</span>
+            <span><i class="fa-solid fa-clock"></i> P2P direct</span>
           </div>
         </div>
 
-        <div id="panelRecv" class="hidden">
-          <div class="receive-form">
-            <p style="color:var(--muted);font-size:14px;margin-bottom:16px">Entrez le code de partage pour recevoir un fichier</p>
-            <div class="input-wrap">
-              <input type="text" id="codeInput" class="input-field" placeholder="Code de partage" maxlength="20" autocomplete="off">
-            </div>
-            <button class="btn primary" id="recvBtn" style="width:100%;justify-content:center"><i class="fa-solid fa-arrow-down-to-bracket"></i> Recevoir</button>
-          </div>
-        </div>
-
-        <div id="progressWrap" class="result-card hidden" style="margin-top:0">
+        <div id="stepCode" class="result-card hidden">
           <div class="radial-bg"></div>
           <div class="relative">
-            <p style="font-size:14px;color:var(--muted);margin-bottom:8px" id="progressText">Préparation...</p>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-          </div>
-        </div>
-
-        <div id="stepDone" class="result-card hidden" style="margin-top:0">
-          <div class="radial-bg"></div>
-          <div class="relative">
-            <div class="badge-ready"><i class="fa-solid fa-circle-check"></i> Terminé</div>
-            <div style="margin-top:16px">
-              <p style="font-weight:600;font-size:1.1rem" id="recvName"></p>
-              <p style="color:var(--muted);font-size:14px" id="recvSize"></p>
-            </div>
-            <div class="btn-group" style="margin-top:16px">
-              <a class="download-link hidden" id="recvDownload" download><i class="fa-solid fa-download"></i> Télécharger</a>
-              <button class="btn primary" id="shareAgain"><i class="fa-solid fa-arrow-rotate-left"></i> Nouvel envoi</button>
+            <div class="badge-ready" id="stepCodeBadge"><i class="fa-solid fa-spinner fa-spin"></i> Préparation...</div>
+            <p style="font-size:14px;color:var(--muted);margin-top:12px" id="stepCodeSub">Lecture du fichier...</p>
+            <div class="code-display" id="codeDisplay" style="margin-top:8px;font-size:1.6rem;user-select:all">---</div>
+            <div style="margin-top:16px;display:flex;justify-content:center" id="qrContainer"></div>
+            <div class="btn-group" style="justify-content:center;margin-top:16px">
+              <button class="btn ghost small" id="cancelShare"><i class="fa-solid fa-xmark"></i> Annuler</button>
             </div>
           </div>
         </div>
       </div>
 
-      <aside id="activity">
-        <div class="activity-card">
-          <div class="activity-head">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="live-dot">
-                <span class="ping"></span>
-                <span class="solid"></span>
-              </span>
-              Activité en direct
-            </div>
-            <span style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums" id="logCount">0 événements</span>
+      <div id="panelRecv" class="hidden">
+        <div class="receive-form">
+          <p style="color:var(--muted);font-size:14px;margin-bottom:16px">Entrez le code de partage pour recevoir un fichier</p>
+          <div class="input-wrap">
+            <input type="text" id="codeInput" class="input-field" placeholder="Code (ex: A3XK9Q7P)" maxlength="8" autocomplete="off">
           </div>
-          <div class="activity-log" id="logList">
-            <div class="empty"><i class="fa-regular fa-folder-open" style="font-size:1.4rem;display:block;margin-bottom:8px;color:rgba(183,122,255,0.4)"></i>Aucun événement...</div>
+          <button class="btn primary" id="recvBtn" style="width:100%;justify-content:center"><i class="fa-solid fa-arrow-down-to-bracket"></i> Recevoir</button>
+        </div>
+      </div>
+
+      <div id="progressWrap" class="result-card hidden" style="margin-top:0">
+        <div class="radial-bg"></div>
+        <div class="relative">
+          <p style="font-size:14px;color:var(--muted);margin-bottom:8px" id="progressText">Préparation...</p>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+      </div>
+
+      <div id="stepDone" class="result-card hidden" style="margin-top:0">
+        <div class="radial-bg"></div>
+        <div class="relative">
+          <div class="badge-ready"><i class="fa-solid fa-circle-check"></i> Terminé</div>
+          <div style="margin-top:16px">
+            <p style="font-weight:600;font-size:1.1rem" id="recvName"></p>
+            <p style="color:var(--muted);font-size:14px" id="recvSize"></p>
+          </div>
+          <div class="btn-group" style="margin-top:16px">
+            <a class="download-link hidden" id="recvDownload" download><i class="fa-solid fa-download"></i> Télécharger</a>
+            <button class="btn primary" id="shareAgain"><i class="fa-solid fa-arrow-rotate-left"></i> Nouvel envoi</button>
           </div>
         </div>
-      </aside>
+      </div>
     </section>
 
     <section style="margin-top:80px;content-visibility:auto">
@@ -206,7 +170,7 @@
           <p class="section-label" style="text-align:left">Historique</p>
           <h2><i class="fa-solid fa-clock-rotate-left"></i> Envois récents</h2>
         </div>
-        <button class="clear-btn" id="clearHistory"><i class="fa-solid fa-trash"></i> Effacer l'historique</button>
+        <button class="clear-btn" id="clearHistory"><i class="fa-solid fa-trash"></i> Effacer</button>
       </div>
       <div id="historyContent">
         <div class="history-empty" id="historyEmpty">
