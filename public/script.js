@@ -275,7 +275,7 @@ function sendFile(){
 
   var idx=0;
   function next(){
-    if(idx>=total||conn.readyState!=='open'){
+    if(idx>=total||!conn.open){
       if(idx>=total){
         try{conn.send('DONE')}catch(e){}
         loading(false);
