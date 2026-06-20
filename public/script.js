@@ -100,7 +100,7 @@ var ui = {};
 var loadingBar=document.getElementById('loadingBar');
 function loading(on){if(loadingBar)loadingBar.classList.toggle('active',on)}
 
-var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview,recvPreviewBtn,recvPreviewBox';
+var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview';
 ids.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
 ui.dropZone=ui.stepMode;
 
@@ -166,8 +166,8 @@ function resetShare(){
   SHARE_CODE=null;
   recvFiles.forEach(function(f){if(f.url)URL.revokeObjectURL(f.url)});
   recvFiles=[];
-  if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML=''}
-  if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
+  if(window._previewUrls){window._previewUrls.forEach(function(u){URL.revokeObjectURL(u)});window._previewUrls=null}
+  if(ui.filePreview){ui.filePreview.innerHTML='';ui.filePreview.style.display=''}
   hide(ui.stepCode);
   hide(ui.progressWrap);
   hide(ui.stepDone);
@@ -190,6 +190,56 @@ ui.fileInput.onchange=function(){
   if(ui.fileInput.files.length)onFiles(Array.from(ui.fileInput.files));
 };
 
+function showSendFileList(files,container){
+  if(!container)return;
+  container.style.display='block';
+  var html='<div class="file-tile-grid">';
+  for(var i=0;i<files.length;i++){
+    var f=files[i];
+    var inner;
+    if(f.type&&f.type.startsWith('image/')){
+      var thumbUrl=URL.createObjectURL(f);
+      if(!window._previewUrls)window._previewUrls=[];
+      window._previewUrls.push(thumbUrl);
+      inner='<div class="file-tile-img"><img src="'+thumbUrl+'" alt="'+escHtml(f.name)+'"></div>';
+    }else{
+      inner='<div class="file-tile-icon"><i class="'+getFileIcon(f.type)+'"></i></div>';
+    }
+    html+='<div class="file-tile" data-idx="'+i+'">'+inner+'<div class="file-tile-name">'+escHtml(f.name)+'</div></div>';
+  }
+  html+='</div>';
+  container.innerHTML=html;
+  container.onclick=function(e){
+    var tile=e.target.closest('.file-tile');
+    if(!tile)return;
+    var idx=parseInt(tile.getAttribute('data-idx'),10);
+    var f=files[idx];
+    if(!f)return;
+    if(f.type&&f.type.startsWith('image/')){
+      var r=new FileReader();
+      r.onload=function(ev){
+        var overlay=document.createElement('div');
+        overlay.className='preview-overlay';
+        overlay.innerHTML='<div class="preview-overlay-bg"></div><div class="preview-overlay-media"><button class="preview-overlay-close" style="position:absolute;top:8px;right:8px;z-index:1"><i class="fa-solid fa-xmark"></i></button><img src="'+ev.target.result+'" alt="'+escHtml(f.name)+'" style="max-width:100%;max-height:80vh;border-radius:8px"></div>';
+        document.body.appendChild(overlay);
+        requestAnimationFrame(function(){overlay.classList.add('active')});
+        overlay.onclick=function(ev2){
+          if(ev2.target===overlay||ev2.target.closest('.preview-overlay-close')){overlay.classList.remove('active');setTimeout(function(){if(overlay.parentNode)overlay.parentNode.removeChild(overlay)},300)}
+        };
+      };
+      r.readAsDataURL(f);
+    }
+  };
+  updateFileTileCurrent();
+}
+
+function updateFileTileCurrent(){
+  var tiles=(ui.filePreview||document).querySelectorAll('.file-tile');
+  for(var i=0;i<tiles.length;i++){
+    tiles[i].classList.toggle('current',i===sendQueueIdx&&i<sendQueue.length);
+  }
+}
+
 function onFiles(files){
   var valid=[];
   for(var i=0;i<files.length;i++){
@@ -205,6 +255,7 @@ function onFiles(files){
   show(ui.stepCode);
   msg('','');
   hide(ui.status);
+  showSendFileList(valid, ui.filePreview);
   nextFile();
 }
 
@@ -216,10 +267,10 @@ function nextFile(){
   }
   var f=sendQueue[sendQueueIdx];
   if(ui.stepCodeBadge)ui.stepCodeBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Lecture ('+(sendQueueIdx+1)+'/'+sendQueue.length+')...';
-  if(ui.stepCodeSub)ui.stepCodeSub.textContent = f.name;
+  if(ui.stepCodeSub)ui.stepCodeSub.textContent = sendQueue.length+' fichier'+(sendQueue.length>1?'s':'')+' · en cours : '+f.name;
   if(ui.codeDisplay)ui.codeDisplay.textContent='---';
   if(ui.qrContainer)ui.qrContainer.innerHTML = '';
-  showFilePreview(f, ui.filePreview);
+  updateFileTileCurrent();
   loading(true);
   var reader=new FileReader();
   reader.onload=function(e){
@@ -241,6 +292,7 @@ function startPeer(){
     if(ui.codeDisplay)ui.codeDisplay.textContent=code;
     hide(ui.progressWrap);
     hide(ui.stepDone);
+    updateFileTileCurrent();
     if(ui.stepCodeBadge)ui.stepCodeBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Prêt à partager';
     if(ui.stepCodeSub)ui.stepCodeSub.textContent = 'Code : ' + code + ' — scannez le QR ou partagez le code';
     var url=location.origin+location.pathname.replace(/\/+$/,'')+'#'+code;
@@ -354,6 +406,7 @@ function sendNextInQueue(){
   loading(true);
   var f=sendQueue[sendQueueIdx];
   if(ui.progressText)ui.progressText.textContent='Préparation de ' + f.name + '...';
+  updateFileTileCurrent();
   var reader=new FileReader();
   reader.onload=function(e){
     sendFileBuf=new Uint8Array(e.target.result);
@@ -389,8 +442,6 @@ function startReceive(code){
   recvFiles.forEach(function(f){if(f.url)URL.revokeObjectURL(f.url)});
   recvFiles=[];
   recvChunks=[];
-  if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML=''}
-  if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
 
   peer=new Peer();
 
@@ -524,65 +575,32 @@ function getPreviewKind(type){
   return null;
 }
 
-function setupPreview(mime, url, blob, name){
-  var kind=getPreviewKind(mime);
-  if(!kind||!ui.recvPreviewBtn){
-    if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
-    if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML='';}
-    return;
-  }
-  show(ui.recvPreviewBtn);
-  var opened=false;
-  ui.recvPreviewBtn.onclick=function(){
-    if(opened){
-      hide(ui.recvPreviewBox);
-      ui.recvPreviewBtn.innerHTML='<i class="fa-solid fa-eye"></i> Aperçu';
-      opened=false;
-      return;
-    }
-    renderPreview(kind, url, blob, name);
-    show(ui.recvPreviewBox);
-    ui.recvPreviewBtn.innerHTML='<i class="fa-solid fa-eye-slash"></i> Masquer';
-    opened=true;
-  };
-}
-
-function renderPreview(kind, url, blob, name){
-  if(!ui.recvPreviewBox)return;
-  var box=ui.recvPreviewBox;
-  var dl='<a class="btn primary small" href="'+url+'" download="'+escHtml(name)+'" style="margin-top:12px;width:100%;justify-content:center"><i class="fa-solid fa-download"></i> Télécharger</a>';
-  var common='max-width:100%;border-radius:12px;display:block;margin:0 auto';
+function showPreviewModal(kind, url, blob, name){
+  var overlay=document.createElement('div');
+  overlay.className='preview-overlay';
+  var dl='<a class="btn primary small" href="'+url+'" download="'+escHtml(name)+'" style="width:100%;justify-content:center"><i class="fa-solid fa-download"></i> Télécharger</a>';
+  var html='<div class="preview-overlay-bg"></div><div class="preview-overlay-media"><button class="preview-overlay-close" style="position:absolute;top:8px;right:8px;z-index:1"><i class="fa-solid fa-xmark"></i></button>';
   if(kind==='image'){
-    box.innerHTML='<img src="'+url+'" alt="'+escHtml(name)+'" style="'+common+'">'+dl;
+    html+='<img src="'+url+'" alt="'+escHtml(name)+'" style="max-width:100%;max-height:80vh;border-radius:8px">'+dl;
   }else if(kind==='video'){
-    box.innerHTML='<video src="'+url+'" controls style="'+common+';max-height:420px;width:100%"></video>'+dl;
+    html+='<video src="'+url+'" controls style="max-width:100%;max-height:75vh;border-radius:8px;width:auto"></video>'+dl;
   }else if(kind==='audio'){
-    box.innerHTML='<audio src="'+url+'" controls style="width:100%"></audio>'+dl;
+    html+='<audio src="'+url+'" controls style="width:320px;max-width:100%"></audio>'+dl;
   }else if(kind==='pdf'){
-    box.innerHTML='<iframe src="'+url+'" style="width:100%;height:480px;border:0;border-radius:12px;background:#fff"></iframe>'+dl;
+    html+='<iframe src="'+url+'"></iframe>'+dl;
   }else if(kind==='text'){
-    box.innerHTML='<pre style="max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;padding:12px;border-radius:12px;background:rgba(127,127,127,.08)"></pre>'+dl;
-    var pre=box.querySelector('pre');
-    blob.slice(0,20000).text().then(function(t){
-      pre.textContent=t+(blob.size>20000?'\n\n… (aperçu tronqué)':'');
-    }).catch(function(){pre.textContent='Aperçu indisponible.'});
+    html+='<pre></pre>'+dl;
   }
-}
-
-function shareOrDownload(e){
-  if(recvFiles.length===0)return;
-  if(recvFiles.length===1){
-    var f=recvFiles[0];
-    if(navigator.share && navigator.canShare){
-      try{
-        var file=new File([f.blob], f.name, {type:f.mime||'application/octet-stream'});
-        if(navigator.canShare({files:[file]})){
-          e.preventDefault();
-          navigator.share({files:[file], title:f.name}).catch(function(){});
-          return;
-        }
-      }catch(err){}
-    }
+  html+='</div>';
+  overlay.innerHTML=html;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){overlay.classList.add('active')});
+  overlay.onclick=function(e){
+    if(e.target===overlay||e.target.closest('.preview-overlay-close')){overlay.classList.remove('active');setTimeout(function(){if(overlay.parentNode)overlay.parentNode.removeChild(overlay)},300)}
+  };
+  if(kind==='text'){
+    var pre=overlay.querySelector('pre');
+    if(pre)blob.slice(0,20000).text().then(function(t){pre.textContent=t+(blob.size>20000?'\n\n… (aperçu tronqué)':'')}).catch(function(){pre.textContent='Aperçu indisponible.'});
   }
 }
 
@@ -622,20 +640,16 @@ function showRecvList(){
       var idx=parseInt(btn.getAttribute('data-idx'),10);
       var f=recvFiles[idx];
       if(!f)return;
-      if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
       var kind=getPreviewKind(f.mime);
-      if(kind)renderPreview(kind, f.url, f.blob, f.name);
-      show(ui.recvPreviewBox);
+      if(kind)showPreviewModal(kind, f.url, f.blob, f.name);
     };
   }
   if(recvFiles.length===1){
     var last=recvFiles[0];
     if(ui.recvDownload){ui.recvDownload.href=last.url;ui.recvDownload.download=last.name;ui.recvDownload.innerHTML='<i class="fa-solid fa-download"></i> Télécharger'}
-    setupPreview(last.mime, last.url, last.blob, last.name);
     show(ui.recvDownload);
   }else{
     hide(ui.recvDownload);
-    if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
   }
   hide(ui.progressWrap);
   show(ui.stepDone);
@@ -662,8 +676,6 @@ function showRecvList(){
 })();
 
 // ---- UI ----
-
-if(ui.recvDownload)ui.recvDownload.addEventListener('click', shareOrDownload);
 
 if(ui.codeDisplay)ui.codeDisplay.onclick=function(){
   if(SHARE_CODE){
