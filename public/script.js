@@ -319,7 +319,7 @@ function startReceive(code){
   peer=new Peer();
 
   peer.on('open',function(){
-    conn=peer.connect(code,{reliable:true,serialization:'raw'});
+    conn=peer.connect(code,{reliable:true,serialization:'binary'});
     recvChunks=[];
 
     var timeout=setTimeout(function(){
