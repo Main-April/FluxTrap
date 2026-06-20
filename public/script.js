@@ -275,6 +275,7 @@ function sendFile(){
 
   var idx=0;
   function next(){
+    // Error correct
     if(idx>=total||!conn.open){
       if(idx>=total){
         try{conn.send('DONE')}catch(e){}
