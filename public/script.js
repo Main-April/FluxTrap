@@ -77,6 +77,15 @@ document.getElementById('clearHistory').onclick=function(){
   showToast('WiShare prêt','ok');
 })();
 
+// GDPR
+(function(){
+  if(localStorage.getItem('wishare-gdpr')){document.getElementById('gdprBanner').classList.add('hidden')}
+})();
+document.getElementById('gdprAccept').onclick=function(){
+  try{localStorage.setItem('wishare-gdpr','1')}catch(e){}
+  document.getElementById('gdprBanner').classList.add('hidden');
+};
+
 var ui = {};
 var loadingBar=document.getElementById('loadingBar');
 function loading(on){loadingBar.classList.toggle('active',on)}
@@ -246,7 +255,7 @@ function sendFile(){
       return;
     }
     var s=idx*CHUNK,e=Math.min(s+CHUNK,fileBuf.length);
-    conn.send(fileBuf.subarray(s,e).buffer);
+    conn.send(fileBuf.slice(s,e).buffer);
     idx++;
     ui.progressFill.style.width=Math.round(idx/total*100)+'%';
     ui.progressText.textContent='Envoi... '+idx+'/'+total;
