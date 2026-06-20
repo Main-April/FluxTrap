@@ -29,24 +29,25 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 
-/* ── Grid backdrop ── */
+/* ── Dot-grid backdrop ── */
 .bg-grid{
-  background-image:linear-gradient(to right,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,0.03) 1px,transparent 1px);
-  background-size:44px 44px;
+  position:fixed;inset:0;pointer-events:none;z-index:-1;overflow:hidden;
+  background-image:radial-gradient(circle,rgba(255,255,255,0.06) 1px,transparent 1px);
+  background-size:28px 28px;
 }
+.bg-grid::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(183,122,255,0.1) 0%,transparent 25%,rgba(124,92,255,0.07) 50%,transparent 75%,rgba(52,211,153,0.05) 100%);
+  background-size:200% 200%;
+  animation:wave-shift 14s ease-in-out infinite;
+}
+@keyframes wave-shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .bg-noise::before{
   content:'';position:absolute;inset:0;pointer-events:none;
   opacity:0.035;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%%25' height='100%%25' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
 }
 
-/* ── Blobs ── */
-.blob{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:-1;will-change:transform}
-.blob-1{width:450px;height:450px;background:rgba(183,122,255,0.15);top:-100px;left:-60px}
-.blob-2{width:420px;height:420px;background:rgba(124,92,255,0.12);top:40%;right:-120px}
-
-@keyframes float-slow{0%,100%{transform:translate(0,0)}50%{transform:translate(20px,-30px)}}
-@keyframes float-slower{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,20px)}}
 @keyframes pulse-ring{0%{transform:scale(0.9);opacity:0.6}100%{transform:scale(1.8);opacity:0}}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 @keyframes fade-up{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:translateY(0)}}
@@ -56,8 +57,6 @@ body{
 @keyframes toast-out{0%{opacity:1;transform:translateX(0) scale(1)}100%{opacity:0;transform:translateX(120%) scale(0.9)}}
 
 @media (prefers-reduced-motion: no-preference){
-  .blob-1{animation:float-slow 14s ease-in-out infinite}
-  .blob-2{animation:float-slower 18s ease-in-out infinite}
   .stat-card .shimmer{background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);background-size:200% 100%;animation:shimmer 2.5s linear infinite}
   .hero,.drop-zone,.result-card,.step-card,.history-list{animation:fade-up 0.5s ease-out both}
   .drop-zone,.result-card{animation-duration:0.4s}
@@ -118,8 +117,8 @@ body{
 }
 
 /* ── Layout ── */
-.page-wrap{position:relative;min-height:100vh;overflow:hidden}
-.page-inner{max-width:720px;margin:0 auto}
+.page-wrap{position:relative;min-height:100%;overflow:hidden}
+.page-inner{max-width:70%;margin:0 auto}
 
 /* ── Header ── */
 header{
@@ -426,7 +425,6 @@ footer i.fa-heart{color:var(--brand);margin:0 2px}
   .step-card{padding:16px}
   .step-num{font-size:2rem}
   .decor-svg{display:none}
-  .blob-1,.blob-2{display:none}
   .btn-row{gap:6px;margin-top:12px}
   .btn{padding:8px 14px;font-size:13px}
   .footer-inner{flex-direction:column;gap:6px;text-align:center}
