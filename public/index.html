@@ -3,233 +3,89 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WiShare — Peer-to-peer file sharing</title>
+<title>WiShare — Share files P2P</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="page-wrap bg-noise">
-  <div class="bg-grid" aria-hidden></div>
-  <div class="blob blob-1 animate-float-slow" aria-hidden></div>
-  <div class="blob blob-2 animate-float-slower" aria-hidden></div>
 
-  <svg class="decor-svg" style="top:100px;right:40px;width:90px;height:90px" viewBox="0 0 100 100" fill="none"><polygon points="50,5 95,80 5,80" stroke="currentColor" stroke-width="1.5"/></svg>
-  <svg class="decor-svg" style="bottom:160px;left:30px;width:80px;height:80px;animation:float-slow 14s ease-in-out infinite" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 6"/></svg>
-  <svg class="decor-svg" style="top:35%;left:25%;width:50px;height:50px" viewBox="0 0 100 100" fill="none"><rect x="10" y="10" width="80" height="80" stroke="currentColor" stroke-width="1.5" transform="rotate(15 50 50)"/></svg>
+<div id="app">
 
   <header>
     <div class="header-inner">
-      <div class="logo">
-        <span class="logo-icon"><i class="fa-solid fa-wifi"></i></span>
-        <span>WiShare</span>
-      </div>
-      <nav>
-        <a href="#upload"><i class="fa-solid fa-upload"></i> Upload</a>
-        <a href="#activity"><i class="fa-solid fa-chart-simple"></i> Activity</a>
-        <a href="https://github.com/Main-April/WiShare/tree/main" target="_blank" class="btn"><i class="fa-brands fa-github"></i> GitHub</a>
-      </nav>
+      <span class="logo"><i class="fa-solid fa-wifi"></i> WiShare</span>
+      <span class="tagline">encrypted P2P</span>
     </div>
   </header>
 
-  <main class="page-inner">
-    <section class="hero">
-      <div class="badge">
-        <span class="badge-dot">
-          <span class="ring"></span>
-          <span class="solid"></span>
-        </span>
-        Peer-to-peer transfers &middot; No account required
-      </div>
-      <h1>Share anything, <span class="gradient-text">in one scan.</span></h1>
-      <p>Drop files or folders. We generate a code and QR so recipients can download on any device.</p>
-      <div class="stats" id="statsRow">
-        <div class="stat-card">
-          <div class="shimmer animate-shimmer"></div>
-          <div class="stat-label"><i class="fa-solid fa-bolt"></i> Uploads</div>
-          <div class="stat-value" id="statUploads">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="shimmer animate-shimmer"></div>
-          <div class="stat-label"><i class="fa-solid fa-file"></i> Files</div>
-          <div class="stat-value" id="statFiles">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="shimmer animate-shimmer"></div>
-          <div class="stat-label"><i class="fa-solid fa-database"></i> Transferred</div>
-          <div class="stat-value" id="statBytes">0 B</div>
-        </div>
-      </div>
-    </section>
+  <main>
+    <div id="status"></div>
 
-    <section id="upload" class="content-grid">
-      <div>
-        <div id="status" class="msg hidden"></div>
+    <div class="tabs">
+      <button class="tab active" id="tabShare"><i class="fa-solid fa-arrow-up-from-bracket"></i> Share</button>
+      <button class="tab" id="tabRecv"><i class="fa-solid fa-arrow-down-to-bracket"></i> Receive</button>
+    </div>
 
-        <div class="tabs">
-          <button class="tab active" id="tabShare"><i class="fa-solid fa-arrow-up-from-bracket"></i> Share</button>
-          <button class="tab" id="tabRecv"><i class="fa-solid fa-arrow-down-to-bracket"></i> Receive</button>
-        </div>
+    <!-- ── SHARE ── -->
+    <div id="panelShare">
 
-        <!-- Share panel -->
-        <div id="panelShare">
-          <!-- Drop zone (initial state) -->
-          <div id="stepMode" class="drop-zone">
-            <div class="radial-bg"></div>
-            <div class="drop-icon-wrap">
-              <div class="drop-icon-ring"></div>
-              <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-            </div>
-            <h3>Drop files anywhere here</h3>
-            <p>Multiple files &amp; folders supported &middot; Up to 500 MB</p>
-            <div class="btn-row">
-              <input type="file" id="fileInput" class="hidden">
-              <button class="btn primary" type="button"><i class="fa-solid fa-file-arrow-up"></i> Choose files</button>
-            </div>
-            <div class="features">
-              <span><i class="fa-solid fa-lock"></i> Encrypted</span>
-              <span><i class="fa-solid fa-bolt"></i> Instant code</span>
-              <span><i class="fa-solid fa-clock"></i> P2P direct</span>
-            </div>
-          </div>
-
-          <!-- File info + Share button -->
-          <div id="stepFileInfo" class="result-card hidden">
-            <div class="radial-bg"></div>
-            <div class="relative">
-              <div class="result-header">
-                <div>
-                  <div class="badge-ready"><i class="fa-solid fa-file"></i> File selected</div>
-                  <p style="font-size:1.2rem;font-weight:600;margin-top:8px" id="fileName"></p>
-                  <p style="color:var(--muted);font-size:14px" id="fileSize"></p>
-                </div>
-              </div>
-              <div class="btn-group" style="margin-top:16px">
-                <button class="btn primary" id="shareBtn"><i class="fa-solid fa-share-nodes"></i> Share</button>
-                <button class="btn ghost" id="backBtn"><i class="fa-solid fa-arrow-rotate-left"></i> Back</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Code display -->
-          <div id="stepCode" class="result-card hidden">
-            <div class="radial-bg"></div>
-            <div class="relative">
-              <div class="badge-ready"><i class="fa-solid fa-circle-check"></i> Ready to share</div>
-              <p style="font-size:14px;color:var(--muted);margin-top:12px">Share this code or scan the QR</p>
-              <div class="code-display" id="codeDisplay" style="margin-top:8px;font-size:1.6rem">---</div>
-              <div style="margin-top:16px;display:flex;justify-content:center" id="qrContainer"></div>
-              <div class="btn-group" style="justify-content:center;margin-top:16px">
-                <button class="btn ghost small" id="cancelShare"><i class="fa-solid fa-xmark"></i> Cancel</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Receive panel -->
-        <div id="panelRecv" class="hidden">
-          <div class="receive-form">
-            <p style="color:var(--muted);font-size:14px;margin-bottom:16px">Enter the share code to receive a file</p>
-            <div class="input-wrap">
-              <input type="text" id="codeInput" class="input-field" placeholder="Enter code" maxlength="20" autocomplete="off">
-            </div>
-            <button class="btn primary" id="recvBtn" style="width:100%;justify-content:center"><i class="fa-solid fa-arrow-down-to-bracket"></i> Receive</button>
-          </div>
-        </div>
-
-        <!-- Shared progress (shown from either panel) -->
-        <div id="progressWrap" class="result-card hidden" style="margin-top:0">
-          <div class="radial-bg"></div>
-          <div class="relative">
-            <p style="font-size:14px;color:var(--muted);margin-bottom:8px" id="progressText">Preparing...</p>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-          </div>
-        </div>
-
-        <!-- Shared done state -->
-        <div id="stepDone" class="result-card hidden" style="margin-top:0">
-          <div class="radial-bg"></div>
-          <div class="relative">
-            <div class="badge-ready"><i class="fa-solid fa-circle-check"></i> Complete</div>
-            <div style="margin-top:16px">
-              <p style="font-weight:600;font-size:1.1rem" id="recvName"></p>
-              <p style="color:var(--muted);font-size:14px" id="recvSize"></p>
-            </div>
-            <div class="btn-group" style="margin-top:16px">
-              <a class="download-link hidden" id="recvDownload" download><i class="fa-solid fa-download"></i> Download</a>
-              <button class="btn primary" id="shareAgain"><i class="fa-solid fa-arrow-rotate-left"></i> Share Another</button>
-            </div>
-          </div>
+      <div id="stepDrop" class="drop-zone">
+        <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+        <h3>Select a file to share</h3>
+        <p class="muted">or drag &amp; drop here</p>
+        <input type="file" id="fileInput" hidden>
+        <button class="btn primary" id="pickBtn"><i class="fa-solid fa-folder-open"></i> Browse</button>
+        <div class="pill-row">
+          <span><i class="fa-solid fa-lock"></i> Encrypted</span>
+          <span><i class="fa-solid fa-bolt"></i> P2P</span>
+          <span><i class="fa-solid fa-clock"></i> Up to 500 MB</span>
         </div>
       </div>
 
-      <aside id="activity">
-        <div class="activity-card">
-          <div class="activity-head">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="live-dot">
-                <span class="ping"></span>
-                <span class="solid"></span>
-              </span>
-              Live activity
-            </div>
-            <span style="font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums" id="logCount">0 events</span>
-          </div>
-          <div class="activity-log" id="logList">
-            <div class="empty"><i class="fa-regular fa-folder-open" style="font-size:1.4rem;display:block;margin-bottom:8px;color:rgba(183,122,255,0.4)"></i>No events yet...</div>
-          </div>
+      <div id="stepShare" class="card hidden">
+        <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="code-box" id="codeDisplay">------</div>
+        <p class="muted">Share this code <span class="copy-hint" id="copyHint">— tap to copy</span></p>
+        <div id="qrContainer" class="qr-wrap"></div>
+        <div class="btn-row">
+          <button class="btn ghost" id="cancelShare"><i class="fa-solid fa-xmark"></i> Cancel</button>
         </div>
-      </aside>
-    </section>
+      </div>
 
-    <section style="margin-top:80px">
-      <p class="section-label">Workflow</p>
-      <h2 class="section-title">Three steps. Zero friction.</h2>
-      <div class="steps">
-        <div class="step-card">
-          <span class="step-num">01</span>
-          <div class="step-icon"><i class="fa-solid fa-upload"></i></div>
-          <h4>Upload</h4>
-          <p>Drop a file or a whole folder.</p>
-        </div>
-        <div class="step-card">
-          <span class="step-num">02</span>
-          <div class="step-icon"><i class="fa-solid fa-qrcode"></i></div>
-          <h4>Generate</h4>
-          <p>We create a QR code and share code instantly.</p>
-        </div>
-        <div class="step-card">
-          <span class="step-num">03</span>
-          <div class="step-icon"><i class="fa-solid fa-share-nodes"></i></div>
-          <h4>Share</h4>
-          <p>Anyone with the code or QR can download directly.</p>
-        </div>
-      </div>
-    </section>
+    </div>
 
-    <section class="history-section" id="history">
-      <div class="history-head">
-        <div>
-          <p class="section-label" style="text-align:left">Memory</p>
-          <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent uploads</h2>
-        </div>
-        <button class="clear-btn" id="clearHistory"><i class="fa-solid fa-trash"></i> Clear history</button>
+    <!-- ── RECEIVE ── -->
+    <div id="panelRecv" hidden>
+      <div class="recv-box">
+        <p class="muted" style="margin-bottom:12px">Enter the share code</p>
+        <input type="text" id="codeInput" class="code-input" placeholder="e.g. abc123" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button class="btn primary" id="recvBtn" style="width:100%;margin-top:12px"><i class="fa-solid fa-arrow-down-to-bracket"></i> Receive</button>
       </div>
-      <div id="historyContent">
-        <div class="history-empty" id="historyEmpty">
-          <i class="fa-regular fa-folder-open"></i>
-          No uploads yet &mdash; your history will appear here.
-        </div>
-        <div class="history-list hidden" id="historyList"></div>
+    </div>
+
+    <!-- ── PROGRESS (shared) ── -->
+    <div id="progressWrap" class="card hidden">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <p class="muted" id="progressText">Preparing...</p>
+    </div>
+
+    <!-- ── DONE (shared) ── -->
+    <div id="stepDone" class="card hidden">
+      <div class="card-icon"><i class="fa-solid fa-check"></i></div>
+      <p style="font-weight:600;font-size:1.1rem" id="recvName"></p>
+      <p class="muted" id="recvSize"></p>
+      <div class="btn-row">
+        <a class="btn primary" id="recvDownload" download hidden><i class="fa-solid fa-download"></i> Download</a>
+        <button class="btn ghost" id="shareAgain"><i class="fa-solid fa-arrow-rotate-left"></i> New transfer</button>
       </div>
-    </section>
+    </div>
+
   </main>
 
   <footer>
-    <div class="footer-inner">
-      <span><i class="fa-solid fa-wifi" style="color:var(--brand)"></i> WiShare</span>
-      <span>Built with <i class="fa-solid fa-heart"></i> &middot; 2026</span>
-    </div>
+    <span class="muted">WiShare &middot; direct P2P &middot; no server</span>
   </footer>
+
 </div>
 
 <script src="peerjs.min.js"></script>
