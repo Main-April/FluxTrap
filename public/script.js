@@ -75,7 +75,6 @@ document.getElementById('clearHistory').onclick=function(){
   }catch(e){}
   renderHistory();
   updateStats();
-  showToast('WiShare prêt','ok');
 })();
 
 (function(){
