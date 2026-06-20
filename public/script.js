@@ -7,6 +7,15 @@ var fileBuf = null;
 var recvChunks = [];
 var historyEntries = [];
 var STORAGE_KEY = 'wishare-history';
+var PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+      { urls: ['turn:openrelay.metered.ca:80', 'turns:openrelay.metered.ca:443'], username: 'openrelayproject', credential: 'openrelayproject' }
+    ]
+  }
+};
 
 function showToast(msg, level){
   level = level || 'info';
@@ -202,7 +211,7 @@ function onFile(f){
 
 function startPeer(){
   var code=genCode();
-    peer=new Peer(code);
+    peer=new Peer(code,PEER_CONFIG);
   var expireTimer;
   var connected=false;
 
@@ -261,6 +270,9 @@ function startPeer(){
     if(e.type==='network'){
       showToast('Erreur réseau — impossible de joindre le serveur de signalement. Vérifiez votre connexion.','warn');
       msg('Erreur réseau. Vérifiez votre connexion internet et réessayez.','err');
+    }else if(e.type==='negotiation-failed'){
+      showToast('Échec de connexion — les deux appareils n\'ont pas pu établir de liaison. Essayez sur un autre réseau ou avec un autre moyen.','warn');
+      msg('Échec de connexion PeerJS. Ce problème arrive souvent entre un réseau mobile et un réseau d\'entreprise. Essayez sur un réseau domestique ou partagé.','err');
     }else{
       showToast('Erreur : '+e.type,'warn');
     }
@@ -314,7 +326,7 @@ function startReceive(code){
   msg('Connexion à '+code+'...','info');
   loading(true);
 
-  peer=new Peer();
+  peer=new Peer(PEER_CONFIG);
 
   peer.on('open',function(){
     conn=peer.connect(code,{reliable:true});
@@ -391,6 +403,9 @@ function startReceive(code){
     }else if(e.type==='network'){
       showToast('Erreur réseau — impossible de joindre le pair','warn');
       msg('Erreur réseau. Vérifiez que l\'expéditeur est en ligne.','err');
+    }else if(e.type==='negotiation-failed'){
+      showToast('Échec de connexion — impossible de joindre l\'expéditeur directement. Essayez sur un autre réseau.','warn');
+      msg('Échec de connexion (negotiation-failed). Le pare-feu ou le NAT bloque la liaison. Essayez de partager depuis un autre réseau (ex: tous les deux en WiFi domestique).','err');
     }else{
       showToast('Erreur : '+e.type,'warn');
       msg('Erreur: '+e.type,'err');
