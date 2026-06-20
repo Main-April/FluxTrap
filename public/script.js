@@ -5,6 +5,9 @@ var conn = null;
 var fileToSend = null;
 var fileBuf = null;
 var recvChunks = [];
+var recvBlob = null;
+var recvBlobName = '';
+var recvBlobUrl = null;
 var historyEntries = [];
 var STORAGE_KEY = 'wishare-history';
 
@@ -91,7 +94,7 @@ var ui = {};
 var loadingBar=document.getElementById('loadingBar');
 function loading(on){if(loadingBar)loadingBar.classList.toggle('active',on)}
 
-var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview';
+var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview,recvPreviewBtn,recvPreviewBox';
 ids.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
 ui.dropZone=ui.stepMode;
 
@@ -155,6 +158,10 @@ function resetShare(){
   if(peer){peer.destroy();peer=null}
   conn=null;
   SHARE_CODE=null;
+  if(recvBlobUrl){URL.revokeObjectURL(recvBlobUrl);recvBlobUrl=null}
+  recvBlob=null;recvBlobName='';
+  if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML=''}
+  if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
   hide(ui.stepCode);
   hide(ui.progressWrap);
   hide(ui.stepDone);
@@ -278,7 +285,7 @@ function startPeer(){
 
 function sendFile(){
   var total=Math.ceil(fileBuf.length/CHUNK);
-  var meta={type:'meta',name:fileToSend.name,size:fileToSend.size,total:total};
+  var meta={type:'meta',name:fileToSend.name,size:fileToSend.size,total:total,mime:fileToSend.type||''};
   console.log('[WiShare][send] sendFile start, total chunks=',total,'conn.open=',conn.open);
   conn.send(JSON.stringify(meta));
 
@@ -326,6 +333,10 @@ function startReceive(code){
   if(ui.progressText)ui.progressText.textContent='Connexion...';
   msg('Connexion à '+code+'...','info');
   loading(true);
+  if(recvBlobUrl){URL.revokeObjectURL(recvBlobUrl);recvBlobUrl=null}
+  recvBlob=null;recvBlobName='';
+  if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML=''}
+  if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
 
   peer=new Peer();
 
@@ -421,17 +432,100 @@ function startReceive(code){
   });
 }
 
+function guessMimeFromName(name){
+  var ext=(name||'').split('.').pop().toLowerCase();
+  var map={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',svg:'image/svg+xml',
+    mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime',
+    mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',
+    pdf:'application/pdf',
+    txt:'text/plain',md:'text/markdown',json:'application/json',csv:'text/csv'};
+  return map[ext]||'';
+}
+
+function getPreviewKind(type){
+  if(!type)return null;
+  if(type.startsWith('image/'))return 'image';
+  if(type.startsWith('video/'))return 'video';
+  if(type.startsWith('audio/'))return 'audio';
+  if(type==='application/pdf')return 'pdf';
+  if(type.startsWith('text/')||type==='application/json')return 'text';
+  return null;
+}
+
+function setupPreview(mime, url, blob, name){
+  var kind=getPreviewKind(mime);
+  if(!kind||!ui.recvPreviewBtn){
+    if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
+    if(ui.recvPreviewBox){hide(ui.recvPreviewBox);ui.recvPreviewBox.innerHTML='';}
+    return;
+  }
+  show(ui.recvPreviewBtn);
+  var opened=false;
+  ui.recvPreviewBtn.onclick=function(){
+    if(opened){
+      hide(ui.recvPreviewBox);
+      ui.recvPreviewBtn.innerHTML='<i class="fa-solid fa-eye"></i> Aperçu';
+      opened=false;
+      return;
+    }
+    renderPreview(kind, url, blob, name);
+    show(ui.recvPreviewBox);
+    ui.recvPreviewBtn.innerHTML='<i class="fa-solid fa-eye-slash"></i> Masquer';
+    opened=true;
+  };
+}
+
+function renderPreview(kind, url, blob, name){
+  if(!ui.recvPreviewBox)return;
+  var box=ui.recvPreviewBox;
+  var common='max-width:100%;border-radius:12px;display:block;margin:0 auto';
+  if(kind==='image'){
+    box.innerHTML='<img src="'+url+'" alt="'+escHtml(name)+'" style="'+common+'">';
+  }else if(kind==='video'){
+    box.innerHTML='<video src="'+url+'" controls style="'+common+';max-height:420px;width:100%"></video>';
+  }else if(kind==='audio'){
+    box.innerHTML='<audio src="'+url+'" controls style="width:100%"></audio>';
+  }else if(kind==='pdf'){
+    box.innerHTML='<iframe src="'+url+'" style="width:100%;height:480px;border:0;border-radius:12px;background:#fff"></iframe>';
+  }else if(kind==='text'){
+    box.innerHTML='<pre style="max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;padding:12px;border-radius:12px;background:rgba(127,127,127,.08)"></pre>';
+    var pre=box.querySelector('pre');
+    blob.slice(0,20000).text().then(function(t){
+      pre.textContent=t+(blob.size>20000?'\n\n… (aperçu tronqué)':'');
+    }).catch(function(){pre.textContent='Aperçu indisponible.'});
+  }
+}
+
+function shareOrDownload(e){
+  if(!recvBlob)return;
+  if(navigator.share && navigator.canShare){
+    try{
+      var file=new File([recvBlob], recvBlobName, {type:recvBlob.type||'application/octet-stream'});
+      if(navigator.canShare({files:[file]})){
+        e.preventDefault();
+        navigator.share({files:[file], title:recvBlobName}).catch(function(){});
+        return;
+      }
+    }catch(err){console.warn('[WiShare][recv] navigator.share indisponible, fallback lien direct',err)}
+  }
+  // sinon on laisse le comportement natif de <a download> faire son travail (desktop / Android Chrome)
+}
+
 function finishRecv(meta){
   if(recvChunks.length===0){loading(false);showToast('Aucune donnée reçue','warn');return}
   loading(false);
   if(ui.progressFill)ui.progressFill.style.width='100%';
   if(ui.progressText)ui.progressText.textContent='Terminé !';
-  var blob=new Blob(recvChunks);
+  var mime=(meta&&meta.mime)||guessMimeFromName(meta?meta.name:'')||'application/octet-stream';
+  var blob=new Blob(recvChunks,{type:mime});
+  if(recvBlobUrl)URL.revokeObjectURL(recvBlobUrl);
   var url=URL.createObjectURL(blob);
   var name=meta?meta.name:'fichier_recu';
+  recvBlob=blob;recvBlobName=name;recvBlobUrl=url;
   if(ui.recvName)ui.recvName.textContent=name;
   if(ui.recvSize)ui.recvSize.textContent=fmtSize(blob.size);
   if(ui.recvDownload){ui.recvDownload.href=url;ui.recvDownload.download=name}
+  setupPreview(mime, url, blob, name);
   hide(ui.progressWrap);
   show(ui.stepDone);
   show(ui.recvDownload);
@@ -458,6 +552,8 @@ function finishRecv(meta){
 })();
 
 // ---- UI ----
+
+if(ui.recvDownload)ui.recvDownload.addEventListener('click', shareOrDownload);
 
 if(ui.codeDisplay)ui.codeDisplay.onclick=function(){
   if(SHARE_CODE){
