@@ -132,8 +132,9 @@ header{
 .logo-icon{
   display:inline-flex;width:36px;height:36px;align-items:center;justify-content:center;
   border-radius:8px;background:var(--gradient-brand);box-shadow:var(--shadow-glow);
-  color:#fff;font-size:13px;
+  color:#fff;font-size:13px;transition:transform var(--anim-duration);
 }
+.logo:hover .logo-icon{transform:rotate(-8deg) scale(1.05)}
 nav{display:flex;align-items:center;gap:20px;font-size:14px}
 nav a{color:var(--muted);text-decoration:none;transition:color var(--anim-duration)}
 nav a:hover{color:var(--fg)}
