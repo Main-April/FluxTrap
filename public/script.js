@@ -143,7 +143,7 @@ function showFilePreview(file, container){
   if(file.type&&file.type.startsWith('image/')){
     var r=new FileReader();
     r.onload=function(e){
-      container.innerHTML='<div class="file-preview-img"><img src="'+e.target.result+'" alt="'+escHtml(file.name)+'"></div>';
+      container.innerHTML='<div class="file-preview-img clickable" data-url="'+e.target.result+'"><img src="'+e.target.result+'" alt="'+escHtml(file.name)+'"></div>';
     };
     r.readAsDataURL(file);
   }else{
@@ -590,13 +590,27 @@ function showRecvList(){
   var html='';
   for(var i=0;i<recvFiles.length;i++){
     var f=recvFiles[i];
-    html+='<div class="recv-file"><span class="recv-file-icon"><i class="'+getFileIcon(f.mime)+'"></i></span><span class="recv-file-name">'+escHtml(f.name)+'</span><span class="recv-file-size">'+fmtSize(f.size)+'</span><a class="recv-file-dl" href="'+f.url+'" download="'+escHtml(f.name)+'"><i class="fa-solid fa-download"></i></a></div>';
+    var pk=getPreviewKind(f.mime);
+    html+='<div class="recv-file"><span class="recv-file-icon"><i class="'+getFileIcon(f.mime)+'"></i></span><span class="recv-file-name">'+escHtml(f.name)+'</span><span class="recv-file-size">'+fmtSize(f.size)+'</span>'+(pk?'<button class="recv-file-preview" data-idx="'+i+'" title="Aperçu"><i class="fa-solid fa-eye"></i></button>':'')+'<a class="recv-file-dl" href="'+f.url+'" download="'+escHtml(f.name)+'"><i class="fa-solid fa-download"></i></a></div>';
   }
   var box=document.getElementById('recvFileList');
-  if(box)box.innerHTML=html;
+  if(box){
+    box.innerHTML=html;
+    box.onclick=function(e){
+      var btn=e.target.closest('.recv-file-preview');
+      if(!btn)return;
+      var idx=parseInt(btn.getAttribute('data-idx'),10);
+      var f=recvFiles[idx];
+      if(!f)return;
+      if(ui.recvPreviewBtn)hide(ui.recvPreviewBtn);
+      var kind=getPreviewKind(f.mime);
+      if(kind)renderPreview(kind, f.url, f.blob, f.name);
+      show(ui.recvPreviewBox);
+    };
+  }
   if(recvFiles.length===1){
     var last=recvFiles[0];
-    if(ui.recvDownload){ui.recvDownload.href=last.url;ui.recvDownload.download=last.name}
+    if(ui.recvDownload){ui.recvDownload.href=last.url;ui.recvDownload.download=last.name;ui.recvDownload.innerHTML='<i class="fa-solid fa-download"></i> Télécharger'}
     setupPreview(last.mime, last.url, last.blob, last.name);
     show(ui.recvDownload);
   }else{
@@ -684,3 +698,19 @@ if(tabRecv)tabRecv.onclick=function(){
 
 var cancelBtn=document.getElementById('cancelShare');
 if(cancelBtn)cancelBtn.onclick=function(){resetShare()};
+
+// Preview lightbox
+document.addEventListener('click',function(e){
+  var img=e.target.closest('.file-preview-img.clickable');
+  if(!img)return;
+  var url=img.getAttribute('data-url');
+  if(!url)return;
+  var overlay=document.createElement('div');
+  overlay.className='preview-overlay';
+  overlay.innerHTML='<div class="preview-overlay-bg"></div><div class="preview-overlay-content"><button class="preview-overlay-close"><i class="fa-solid fa-xmark"></i></button><img src="'+url+'" alt="Aperçu"></div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){overlay.classList.add('active')});
+  overlay.onclick=function(e){
+    if(e.target===overlay||e.target.closest('.preview-overlay-close')){overlay.classList.remove('active');setTimeout(function(){if(overlay.parentNode)overlay.parentNode.removeChild(overlay)},300)}
+  };
+});
