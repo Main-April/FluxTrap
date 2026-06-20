@@ -1,9 +1,8 @@
 {
   "name": "wishare",
-  "version": "2.0.0",
-  "description": "P2P file sharing via QR code — 100% static, works on GitHub Pages",
+  "version": "1.0.0",
+  "description": "Simple file sharing via QR code — upload, scan, download",
   "scripts": {
-    "start": "npx serve public/",
-    "server": "node server-local.js"
+    "start": "node server.js"
   }
 }

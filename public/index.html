@@ -2,588 +2,240 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WiShare</title>
 <script src="qrcode.min.js" defer></script>
-<script src="peerjs.min.js" defer></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #0f1117; color: #e4e6f0;
-  display: flex; justify-content: center; align-items: flex-start;
-  min-height: 100vh; padding: 16px;
+  display: flex; justify-content: center;
+  min-height: 100vh; padding: 20px;
 }
-.container { max-width: 440px; width: 100%; }
+.container { max-width: 480px; width: 100%; text-align: center; }
 h1 {
-  font-size: 1.8rem; margin: 16px 0 2px; text-align: center;
+  font-size: 2rem; margin: 20px 0 4px;
   background: linear-gradient(135deg, #6c5ce7, #00cec9);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-.subtitle { text-align: center; color: #8b8fa3; font-size: 0.85rem; margin-bottom: 18px; }
-.card { background: #1a1d2e; border-radius: 12px; padding: 20px; margin-bottom: 14px; }
-.section-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6c5ce7; margin-bottom: 10px; font-weight: 600; }
-
-/* Peer ID */
-.peer-display {
-  display: flex; align-items: center; gap: 12px;
-  background: #0f1117; border-radius: 8px; padding: 8px 12px;
-  margin-bottom: 10px;
-}
-.peer-id { flex: 1; font-family: 'Courier New', monospace; font-size: 0.9rem; word-break: break-all; }
-.peer-copy {
-  background: none; border: none; color: #8b8fa3; cursor: pointer;
-  font-size: 1.1rem; padding: 4px 8px; border-radius: 6px;
-}
-.peer-copy:hover { background: #2a2e42; }
-.peer-copy.copied { color: #00cec9; }
-
-.qr-wrap { display: flex; justify-content: center; padding: 8px 0; }
-#qrcode { padding: 10px; background: #fff; border-radius: 8px; display: inline-block; }
-.qr-hint { text-align: center; color: #8b8fa3; font-size: 0.8rem; margin-top: 6px; }
-
-/* Connect input */
-.connect-row { display: flex; gap: 8px; }
-.connect-row input {
-  flex: 1; background: #0f1117; border: 1px solid #2a2e42; border-radius: 8px;
-  padding: 10px 12px; color: #e4e6f0; font-size: 0.9rem;
-  font-family: 'Courier New', monospace; outline: none;
-}
-.connect-row input:focus { border-color: #6c5ce7; }
-.connect-row input::placeholder { color: #555; font-family: -apple-system, sans-serif; }
-.btn {
-  padding: 10px 18px; border: none; border-radius: 8px;
-  font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap;
-  background: #2a2e42; color: #e4e6f0;
-}
-.btn-primary { background: #6c5ce7; color: #fff; }
-.btn-primary:hover { background: #7f71ea; }
-.btn-primary:disabled { opacity: 0.5; cursor: default; }
-.btn-danger { background: #e74c3c; color: #fff; }
-.btn-danger:hover { background: #f05a4a; }
-
-/* Status */
-.status-bar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; border-radius: 8px; font-size: 0.85rem;
-  margin-bottom: 14px;
-}
-.status-bar.connected { background: rgba(0,206,201,0.1); color: #00cec9; }
-.status-bar.connecting { background: rgba(108,92,231,0.1); color: #6c5ce7; }
-.status-bar.disconnected { background: rgba(231,76,60,0.1); color: #e74c3c; }
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
-.status-dot.connected { background: #00cec9; }
-.status-dot.connecting { background: #6c5ce7; animation: pulse 1s infinite; }
-.status-dot.disconnected { background: #e74c3c; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-/* File area */
-.file-area { text-align: center; }
+.subtitle { color: #8b8fa3; font-size: 0.9rem; margin-bottom: 24px; }
+.card { background: #1a1d2e; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
 .drop-zone {
-  border: 2px dashed #2a2e42; border-radius: 10px; padding: 28px 16px;
+  border: 2px dashed #2a2e42; border-radius: 12px; padding: 40px 20px;
   cursor: pointer; transition: all 0.2s;
 }
-.drop-zone:hover, .drop-zone.drag-over { border-color: #6c5ce7; background: rgba(108,92,231,0.06); }
-.drop-icon { font-size: 2rem; margin-bottom: 6px; }
-.drop-text { color: #8b8fa3; font-size: 0.9rem; }
-.or-text { color: #555; font-size: 0.8rem; margin: 4px 0; }
+.drop-zone:hover, .drop-zone.drag-over { border-color: #6c5ce7; background: rgba(108,92,231,0.08); }
+.drop-icon { font-size: 2.5rem; margin-bottom: 8px; }
+.drop-text { color: #8b8fa3; font-size: 1rem; margin-bottom: 4px; }
+.or-text { color: #555; font-size: 0.85rem; margin: 6px 0; }
+.btn {
+  display: inline-block; padding: 10px 20px; border: none; border-radius: 8px;
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  background: #2a2e42; color: #e4e6f0;
+}
+.btn-primary { background: #6c5ce7; color: #fff; width: 100%; margin-top: 16px; }
+.btn-primary:hover { background: #7f71ea; }
+.btn-primary:disabled { opacity: 0.5; cursor: default; }
 #fileInput { display: none; }
-
 .file-info {
-  display: flex; align-items: center; gap: 10px; padding: 10px;
-  background: #0f1117; border-radius: 8px; margin-bottom: 10px; text-align: left;
+  display: flex; align-items: center; gap: 12px; padding: 12px;
+  background: #0f1117; border-radius: 8px; margin-bottom: 12px; text-align: left;
 }
-.file-icon { font-size: 1.3rem; }
+.file-icon { font-size: 1.5rem; }
 .file-details { flex: 1; min-width: 0; }
-.file-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
-.file-size { font-size: 0.75rem; color: #8b8fa3; }
-
-.progress-bar { height: 6px; background: #0f1117; border-radius: 3px; overflow: hidden; margin: 10px 0; }
-.progress-fill {
-  height: 100%; background: linear-gradient(90deg, #6c5ce7, #00cec9);
-  width: 0%; transition: width 0.2s; border-radius: 3px;
-}
-.progress-text { font-size: 0.8rem; color: #8b8fa3; text-align: center; }
-
-/* Received file */
-.dl-card {
-  display: flex; align-items: center; gap: 12px;
-  background: #0f1117; border-radius: 8px; padding: 12px; margin-top: 10px;
-}
-.dl-icon { font-size: 1.5rem; }
-.dl-info { flex: 1; min-width: 0; }
-.dl-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
-.dl-size { font-size: 0.75rem; color: #8b8fa3; }
-.dl-btn {
-  padding: 8px 16px; border: none; border-radius: 6px;
-  font-size: 0.85rem; font-weight: 600; cursor: pointer;
-  background: #6c5ce7; color: #fff; text-decoration: none;
-}
-.dl-btn:hover { background: #7f71ea; }
-
-/* Log */
-.log { font-size: 0.75rem; color: #555; text-align: center; margin-top: 10px; }
-.log a { color: #6c5ce7; text-decoration: none; }
-
+.file-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { font-size: 0.8rem; color: #8b8fa3; }
+.progress-bar { height: 8px; background: #0f1117; border-radius: 4px; overflow: hidden; margin-top: 12px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #6c5ce7, #00cec9); width: 0%; transition: width 0.3s; border-radius: 4px; }
+.qr-wrap { padding: 16px 0; }
+#qrcode { padding: 12px; background: #fff; border-radius: 8px; display: inline-block; }
+.qr-hint { color: #8b8fa3; font-size: 0.85rem; margin-top: 8px; word-break: break-all; }
 .hidden { display: none !important; }
-footer { text-align: center; font-size: 0.7rem; color: #555; margin-top: 20px; padding-bottom: 20px; }
+.status { color: #8b8fa3; font-size: 0.9rem; padding: 12px; }
+.dl-link {
+  display: inline-block; margin-top: 8px;
+  color: #6c5ce7; text-decoration: none; font-size: 0.85rem;
+  word-break: break-all;
+}
+footer { font-size: 0.75rem; color: #8b8fa3; opacity: 0.6; }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>WiShare</h1>
-  <p class="subtitle">Peer-to-peer file sharing via QR code</p>
+  <p class="subtitle">Drop a file, share the QR code</p>
 
-  <!-- Status -->
-  <div id="statusBar" class="status-bar hidden">
-    <span class="status-dot" id="statusDot"></span>
-    <span id="statusText">Initializing...</span>
-  </div>
-
-  <!-- My Peer ID + QR -->
-  <div class="card" id="myIdCard">
-    <div class="section-title">Your Share ID</div>
-    <div class="peer-display">
-      <span class="peer-id" id="myPeerId">---</span>
-      <button class="peer-copy" id="copyBtn" title="Copy ID">📋</button>
+  <div class="card">
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">📁</div>
+      <p class="drop-text">Drag & drop a file</p>
+      <p class="or-text">or</p>
+      <button class="btn" id="browseBtn">Browse</button>
+      <input type="file" id="fileInput">
     </div>
-    <div class="qr-wrap" id="qrContainer"></div>
-    <p class="qr-hint" id="qrHint">Scan to connect</p>
-  </div>
 
-  <!-- Connect -->
-  <div class="card" id="connectCard">
-    <div class="section-title">Connect</div>
-    <div class="connect-row">
-      <input type="text" id="connectInput" placeholder="Paste peer ID" autocomplete="off">
-      <button class="btn btn-primary" id="connectBtn">Connect</button>
-    </div>
-  </div>
-
-  <!-- File send -->
-  <div class="card hidden" id="fileCard">
-    <div class="section-title">Send File</div>
-    <div class="file-area">
-      <div class="drop-zone" id="dropZone">
-        <div class="drop-icon">📁</div>
-        <p class="drop-text">Tap to choose a file</p>
-        <p class="or-text">or drag & drop</p>
-        <input type="file" id="fileInput">
-      </div>
-      <div id="sendInfo" class="hidden">
-        <div class="file-info">
-          <span class="file-icon">📄</span>
-          <div class="file-details">
-            <div class="file-name" id="sendFileName"></div>
-            <div class="file-size" id="sendFileSize"></div>
-          </div>
+    <div id="uploadSection" class="hidden">
+      <div class="file-info">
+        <span class="file-icon">📄</span>
+        <div class="file-details">
+          <div class="file-name" id="fileName"></div>
+          <div class="file-size" id="fileSize"></div>
         </div>
-        <button class="btn btn-primary" id="sendBtn" style="width:100%">Send File</button>
       </div>
-      <div id="sendProgress" class="hidden">
-        <div class="progress-bar"><div class="progress-fill" id="sendFill"></div></div>
-        <div class="progress-text" id="sendText">Sending...</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Received -->
-  <div class="card hidden" id="recvCard">
-    <div class="section-title">Received</div>
-    <div id="recvProgress" class="hidden">
-      <div class="progress-bar"><div class="progress-fill" id="recvFill"></div></div>
-      <div class="progress-text" id="recvText">Receiving...</div>
-    </div>
-    <div id="recvDone" class="hidden">
-      <div class="dl-card">
-        <span class="dl-icon">📥</span>
-        <div class="dl-info">
-          <div class="dl-name" id="recvFileName"></div>
-          <div class="dl-size" id="recvFileSize"></div>
-        </div>
-        <a class="dl-btn" id="recvDownload" download>Download</a>
+      <button class="btn btn-primary" id="shareBtn">Generate QR Code</button>
+      <div class="progress-bar hidden" id="progressWrap">
+        <div class="progress-fill" id="progressFill"></div>
       </div>
     </div>
+
+    <div id="qrSection" class="hidden">
+      <div class="qr-wrap" id="qrContainer"></div>
+      <p class="qr-hint" id="qrHint">Scan with your phone to download</p>
+      <a class="dl-link hidden" id="dlLink" target="_blank">Open download link</a>
+    </div>
+
+    <div id="statusMsg" class="status hidden"></div>
   </div>
 
-  <div class="log">
-    Open this page on another device and scan the QR code to connect.
-  </div>
-
-  <footer>
-    Peer-to-peer &bull; No cloud &bull; No server &bull; <a href="https://github.com/peerjs/peerjs" target="_blank" rel="noopener" style="color:#555">Powered by PeerJS</a>
-  </footer>
+  <footer>Files stay on your network &bull; No cloud &bull; Auto-deleted after 10 min</footer>
 </div>
 
 <script>
-(function () {
-  var APP_URL = location.origin + location.pathname.replace(/\/+$/, '') + '/';
-  var CHUNK_SIZE = 65536; // 64 KB
-  var peer = null;
-  var conn = null;
-  var myId = null;
-  var connectedPeerId = null;
-  var selectedFile = null;
-  var recvChunks = {};
-  var recvMeta = null;
+var dropZone = document.getElementById('dropZone');
+var fileInput = document.getElementById('fileInput');
+var browseBtn = document.getElementById('browseBtn');
+var uploadSection = document.getElementById('uploadSection');
+var fileName = document.getElementById('fileName');
+var fileSize = document.getElementById('fileSize');
+var shareBtn = document.getElementById('shareBtn');
+var progressWrap = document.getElementById('progressWrap');
+var progressFill = document.getElementById('progressFill');
+var qrSection = document.getElementById('qrSection');
+var qrContainer = document.getElementById('qrContainer');
+var qrHint = document.getElementById('qrHint');
+var dlLink = document.getElementById('dlLink');
+var statusMsg = document.getElementById('statusMsg');
 
-  var els = {};
-  'statusBar,statusDot,statusText,myIdCard,myPeerId,copyBtn,qrContainer,qrHint,connectCard,connectInput,connectBtn,fileCard,dropZone,fileInput,sendInfo,sendFileName,sendFileSize,sendBtn,sendProgress,sendFill,sendText,recvCard,recvProgress,recvFill,recvText,recvDone,recvFileName,recvFileSize,recvDownload'.split(',').forEach(function (k) {
-    els[k] = document.getElementById(k);
-  });
+var serverUrl = '__SERVER_URL__';
+var selectedFile = null;
 
-  function show(el) { el.classList.remove('hidden'); }
-  function hide(el) { el.classList.add('hidden'); }
+function fmtSize(bytes) {
+  if (bytes === 0) return '0 B';
+  var k = 1024;
+  var sizes = ['B', 'KB', 'MB', 'GB'];
+  var i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
-  function fmtSize(b) {
-    if (!b) return '0 B';
-    var k = 1024;
-    var s = ['B', 'KB', 'MB', 'GB'];
-    var i = Math.floor(Math.log(b) / Math.log(k));
-    return parseFloat((b / Math.pow(k, i)).toFixed(1)) + ' ' + s[i];
+function show(el) { el.classList.remove('hidden'); }
+function hide(el) { el.classList.add('hidden'); }
+
+function setStatus(text) {
+  statusMsg.textContent = text;
+  show(statusMsg);
+}
+
+function selectFile(file) {
+  if (file.size > 500 * 1024 * 1024) {
+    alert('File too large (max 500 MB)');
+    return;
   }
+  selectedFile = file;
+  fileName.textContent = file.name;
+  fileSize.textContent = fmtSize(file.size);
+  hide(dropZone);
+  hide(qrSection);
+  hide(dlLink);
+  show(uploadSection);
+  hide(progressWrap);
+  hide(statusMsg);
+}
 
-  function setStatus(type, msg) {
-    show(els.statusBar);
-    els.statusBar.className = 'status-bar ' + type;
-    els.statusDot.className = 'status-dot ' + type;
-    els.statusText.textContent = msg;
-  }
+function uploadFile() {
+  if (!selectedFile) return;
+  shareBtn.disabled = true;
+  shareBtn.textContent = 'Uploading...';
+  show(progressWrap);
+  hide(statusMsg);
+  hide(dlLink);
 
-  function hideStatus() { hide(els.statusBar); }
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var base64 = e.target.result.split(',')[1];
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload');
+    xhr.setRequestHeader('Content-Type', 'application/json');
 
-  function genId() {
-    var r = function () { return Math.random().toString(36).slice(2, 6); };
-    return r() + '-' + r() + '-' + r();
-  }
-
-  function makeQR(text) {
-    els.qrContainer.innerHTML = '';
-    try {
-      new QRCode(els.qrContainer, {
-        text: text,
-        width: 180,
-        height: 180,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    } catch (e) {
-      els.qrContainer.textContent = 'QR Error';
-    }
-  }
-
-  function initPeer() {
-    setStatus('connecting', 'Connecting to signaling server...');
-
-    var id = genId();
-    try {
-      peer = new Peer(id, {
-        debug: 0
-      });
-    } catch (e) {
-      setStatus('disconnected', 'Failed to create Peer: ' + e.message);
-      return;
-    }
-
-    peer.on('open', function (id) {
-      myId = id;
-      els.myPeerId.textContent = id;
-
-      var qrUrl = APP_URL + '#' + id;
-      makeQR(qrUrl);
-
-      setStatus('connected', 'Ready — share your QR code');
-      hide(els.connectCard);
-      show(els.fileCard);
-      checkAutoConnect();
-    });
-
-    peer.on('connection', function (c) {
-      if (conn) {
-        c.on('open', function () {
-          c.send({ type: 'error', msg: 'Already connected to another peer' });
-          c.close();
-        });
-        return;
+    xhr.upload.onprogress = function (e) {
+      if (e.lengthComputable) {
+        progressFill.style.width = (e.loaded / e.total * 100) + '%';
       }
-      setupConnection(c);
-    });
-
-    peer.on('disconnected', function () {
-      setStatus('connecting', 'Reconnecting...');
-      peer.reconnect();
-    });
-
-    peer.on('close', function () {
-      setStatus('disconnected', 'Disconnected. Refresh to restart.');
-    });
-
-    peer.on('error', function (err) {
-      if (err.type === 'peer-unavailable') {
-        setStatus('disconnected', 'Peer not found. Check the ID.');
-        els.connectBtn.disabled = false;
-        els.connectBtn.textContent = 'Connect';
-        return;
-      }
-      if (err.type === 'network' || err.type === 'server-error') {
-        setStatus('disconnected', 'Signaling server unreachable. Check your internet.');
-        return;
-      }
-      console.error('Peer error:', err);
-    });
-
-    window.addEventListener('hashchange', checkAutoConnect);
-  }
-
-  function checkAutoConnect() {
-    var hash = location.hash.replace(/^#/, '');
-    if (hash && hash !== myId && !conn) {
-      els.connectInput.value = hash;
-      doConnect(hash);
-    }
-  }
-
-  function doConnect(targetId) {
-    if (conn) {
-      conn.close();
-      conn = null;
-    }
-    if (!targetId || targetId === myId) return;
-
-    setStatus('connecting', 'Connecting to ' + targetId + '...');
-    els.connectBtn.disabled = true;
-    els.connectBtn.textContent = 'Connecting...';
-
-    var c = peer.connect(targetId, {
-      reliable: true
-    });
-
-    var timeout = setTimeout(function () {
-      if (!c.open) {
-        setStatus('disconnected', 'Connection timed out');
-        els.connectBtn.disabled = false;
-        els.connectBtn.textContent = 'Connect';
-        c.close();
-      }
-    }, 15000);
-
-    c.on('open', function () {
-      clearTimeout(timeout);
-      setupConnection(c);
-    });
-
-    c.on('error', function (err) {
-      clearTimeout(timeout);
-      setStatus('disconnected', 'Connection failed');
-      els.connectBtn.disabled = false;
-      els.connectBtn.textContent = 'Connect';
-    });
-  }
-
-  function setupConnection(c) {
-    conn = c;
-    connectedPeerId = c.peer;
-    hide(els.connectCard);
-    show(els.fileCard);
-    hide(els.sendProgress);
-    hide(els.sendInfo);
-    els.sendBtn.textContent = 'Send File';
-    els.sendBtn.disabled = false;
-    els.connectBtn.disabled = false;
-    els.connectBtn.textContent = 'Connect';
-    setStatus('connected', 'Connected to ' + connectedPeerId);
-
-    hide(els.recvDone);
-    recvChunks = {};
-    recvMeta = null;
-
-    conn.on('data', function (data) {
-      handleData(data);
-    });
-
-    conn.on('close', function () {
-      conn = null;
-      connectedPeerId = null;
-      show(els.connectCard);
-      hide(els.fileCard);
-      hide(els.recvCard);
-      setStatus('disconnected', 'Disconnected');
-    });
-  }
-
-  function handleData(data) {
-    if (!data || typeof data !== 'object') return;
-
-    if (data.type === 'error') {
-      setStatus('disconnected', 'Error: ' + data.msg);
-      return;
-    }
-
-    if (data.type === 'meta') {
-      recvMeta = data;
-      recvChunks = {};
-      show(els.recvCard);
-      show(els.recvProgress);
-      hide(els.recvDone);
-      els.recvFill.style.width = '0%';
-      els.recvText.textContent = 'Receiving ' + data.name + '...';
-      return;
-    }
-
-    if (data.type === 'chunk') {
-      var binary = atob(data.data);
-      var arr = new Uint8Array(binary.length);
-      for (var i = 0; i < binary.length; i++) {
-        arr[i] = binary.charCodeAt(i);
-      }
-      recvChunks[data.index] = arr;
-      var pct = Math.round(Object.keys(recvChunks).length / data.total * 100);
-      els.recvFill.style.width = pct + '%';
-      els.recvText.textContent = 'Receiving ' + (recvMeta ? recvMeta.name : 'file') + '... ' + pct + '%';
-
-      if (Object.keys(recvChunks).length === data.total) {
-        finishReceive();
-      }
-      return;
-    }
-  }
-
-  function finishReceive() {
-    var meta = recvMeta;
-    if (!meta) return;
-    var total = meta.total;
-    var chunks = [];
-    for (var i = 0; i < total; i++) {
-      chunks.push(recvChunks[i]);
-    }
-    var blob = new Blob(chunks, { type: 'application/octet-stream' });
-    var url = URL.createObjectURL(blob);
-    els.recvFileName.textContent = meta.name;
-    els.recvFileSize.textContent = fmtSize(meta.size);
-    els.recvDownload.href = url;
-    els.recvDownload.download = meta.name;
-    hide(els.recvProgress);
-    show(els.recvDone);
-    els.recvFill.style.width = '0%';
-    setStatus('connected', 'Received: ' + meta.name);
-  }
-
-  function sendFile(file) {
-    if (!conn || !conn.open) {
-      setStatus('disconnected', 'Not connected');
-      return;
-    }
-    hide(els.sendInfo);
-    show(els.sendProgress);
-    els.sendFill.style.width = '0%';
-    els.sendBtn.disabled = true;
-
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      var buf = e.target.result;
-      var total = Math.ceil(buf.byteLength / CHUNK_SIZE);
-      conn.send({ type: 'meta', name: file.name, size: buf.byteLength, total: total });
-
-      var idx = 0;
-      function sendNext() {
-        if (idx >= total) {
-          els.sendFill.style.width = '100%';
-          els.sendText.textContent = 'Sent!';
-          els.sendBtn.disabled = false;
-          return;
-        }
-        var start = idx * CHUNK_SIZE;
-        var end = Math.min(start + CHUNK_SIZE, buf.byteLength);
-        var arr = new Uint8Array(buf.slice(start, end));
-        var chars = new Array(arr.length);
-        for (var i = 0; i < arr.length; i++) chars[i] = String.fromCharCode(arr[i]);
-        conn.send({ type: 'chunk', index: idx, total: total, data: btoa(chars.join('')) });
-
-        var pct = Math.round((idx + 1) / total * 100);
-        els.sendFill.style.width = pct + '%';
-        els.sendText.textContent = 'Sending... ' + pct + '%';
-        idx++;
-        setTimeout(sendNext, 0);
-      }
-      sendNext();
     };
-    reader.readAsArrayBuffer(file);
-  }
 
-  // --- UI ---
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        var result = JSON.parse(xhr.responseText);
+        progressFill.style.width = '100%';
+        showQRCode(result);
+      } else {
+        setStatus('Upload failed. Try again.');
+        shareBtn.disabled = false;
+        shareBtn.textContent = 'Generate QR Code';
+        hide(progressWrap);
+      }
+    };
 
-  els.copyBtn.addEventListener('click', function () {
-    if (!myId) return;
-    navigator.clipboard.writeText(myId).then(function () {
-      els.copyBtn.textContent = '✅';
-      els.copyBtn.classList.add('copied');
-      setTimeout(function () {
-        els.copyBtn.textContent = '📋';
-        els.copyBtn.classList.remove('copied');
-      }, 1500);
-    }).catch(function () {});
+    xhr.onerror = function () {
+      setStatus('Network error. Check connection.');
+      shareBtn.disabled = false;
+      shareBtn.textContent = 'Generate QR Code';
+      hide(progressWrap);
+    };
+
+    xhr.send(JSON.stringify({
+      name: selectedFile.name,
+      size: selectedFile.size,
+      data: base64
+    }));
+  };
+  reader.readAsDataURL(selectedFile);
+}
+
+function showQRCode(result) {
+  hide(uploadSection);
+  hide(progressWrap);
+  show(qrSection);
+  qrHint.textContent = 'Scan with your phone to download ' + result.name;
+  dlLink.href = result.url;
+  dlLink.textContent = result.url;
+  show(dlLink);
+
+  qrContainer.innerHTML = '';
+  new QRCode(qrContainer, {
+    text: result.url,
+    width: 200,
+    height: 200,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
   });
+}
 
-  els.connectBtn.addEventListener('click', function () {
-    var id = els.connectInput.value.trim();
-    if (id) doConnect(id);
-  });
-
-  els.connectInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') {
-      var id = els.connectInput.value.trim();
-      if (id) doConnect(id);
-    }
-  });
-
-  els.dropZone.addEventListener('click', function () { els.fileInput.click(); });
-
-  els.dropZone.addEventListener('dragover', function (e) {
-    e.preventDefault();
-    els.dropZone.classList.add('drag-over');
-  });
-
-  els.dropZone.addEventListener('dragleave', function () {
-    els.dropZone.classList.remove('drag-over');
-  });
-
-  els.dropZone.addEventListener('drop', function (e) {
-    e.preventDefault();
-    els.dropZone.classList.remove('drag-over');
-    if (e.dataTransfer.files.length) pickFile(e.dataTransfer.files[0]);
-  });
-
-  els.fileInput.addEventListener('change', function () {
-    if (els.fileInput.files.length) pickFile(els.fileInput.files[0]);
-  });
-
-  function pickFile(file) {
-    if (file.size > 500 * 1024 * 1024) {
-      alert('File too large (max 500 MB)');
-      return;
-    }
-    selectedFile = file;
-    els.sendFileName.textContent = file.name;
-    els.sendFileSize.textContent = fmtSize(file.size);
-    hide(els.sendProgress);
-    show(els.sendInfo);
-    els.sendBtn.textContent = 'Send ' + file.name;
-    els.sendBtn.disabled = false;
-  }
-
-  els.sendBtn.addEventListener('click', function () {
-    if (selectedFile && conn && conn.open) {
-      sendFile(selectedFile);
-    }
-  });
-
-  // Init
-  initPeer();
-})();
+browseBtn.addEventListener('click', function () { fileInput.click(); });
+dropZone.addEventListener('click', function () { fileInput.click(); });
+dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', function (e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', function () {
+  if (fileInput.files.length) selectFile(fileInput.files[0]);
+});
+shareBtn.addEventListener('click', uploadFile);
 </script>
 </body>
 </html>
