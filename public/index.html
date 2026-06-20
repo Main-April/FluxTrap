@@ -180,7 +180,7 @@ function uploadFile() {
         progressFill.style.width = '100%';
         showQRCode(result);
       } else {
-        setStatus('Upload failed. Try again.');
+        setStatus('Upload failed: ' + (xhr.responseText || 'HTTP ' + xhr.status));
         shareBtn.disabled = false;
         shareBtn.textContent = 'Generate QR Code';
         hide(progressWrap);
@@ -188,7 +188,7 @@ function uploadFile() {
     };
 
     xhr.onerror = function () {
-      setStatus('Network error. Check connection.');
+      setStatus('Network error. Is the server running?');
       shareBtn.disabled = false;
       shareBtn.textContent = 'Generate QR Code';
       hide(progressWrap);
