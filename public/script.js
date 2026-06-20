@@ -110,6 +110,12 @@ function fmtSize(b){
   return parseFloat((b/Math.pow(k,Math.floor(Math.log(b)/Math.log(k)))).toFixed(1))+' '+s[Math.floor(Math.log(b)/Math.log(k))];
 }
 
+function genCode(){
+  var s='',chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for(var i=0;i<8;i++)s+=chars[Math.random()*chars.length|0];
+  return s;
+}
+
 function makeQR(t){
   ui.qrContainer.innerHTML='';
   new QRCode(ui.qrContainer,{text:t,width:180,height:180,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
@@ -166,57 +172,90 @@ function onFile(f){
 ui.shareBtn.onclick=function(){
   if(!fileToSend)return;
   ui.shareBtn.disabled=true;
-  ui.shareBtn.textContent='Connexion...';
+  ui.shareBtn.textContent='Préparation...';
   show(ui.progressWrap);
-  ui.progressText.textContent='Connexion...';
-  msg('Création d\'une connexion sécurisée...','info');
+  ui.progressText.textContent='Lecture du fichier...';
+  msg('Préparation du fichier...','info');
 
   loading(true);
-  pushLog('info','Création d\'une connexion sécurisée...');
+  pushLog('info','Lecture du fichier...');
 
-  peer=new Peer();
+  var reader=new FileReader();
+  reader.onload=function(e){
+    fileBuf=new Uint8Array(e.target.result);
+    pushLog('ok','Fichier chargé ('+fmtSize(fileBuf.length)+')');
+    startPeer();
+  };
+  reader.readAsArrayBuffer(fileToSend);
 
-  peer.on('open',function(id){
-    SHARE_CODE=id;
-    loading(false);
-    pushLog('ok','ID Peer: '+id+' — en attente du destinataire');
-    var reader=new FileReader();
-    reader.onload=function(e){
-      fileBuf=e.target.result;
-      ui.codeDisplay.textContent=id;
+  function startPeer(){
+    var code=genCode();
+    peer=new Peer(code);
+    var expireTimer;
+
+    function showCode(){
+      SHARE_CODE=code;
+      ui.codeDisplay.textContent=code;
       hide(ui.stepFileInfo);
       hide(ui.progressWrap);
       show(ui.stepCode);
 
-      var url=location.origin+location.pathname.replace(/\/+$/,'')+'#'+id;
+      var url=location.origin+location.pathname.replace(/\/+$/,'')+'#'+code;
       makeQR(url);
-      msg('Partagez ce code ou scannez le QR','ok');
-    };
-    reader.readAsArrayBuffer(fileToSend);
-  });
+      msg('Code : '+code+' — Partez ce code ou scannez le QR','ok');
 
-  peer.on('connection',function(c){
-    conn=c;
-    conn.on('open',function(){
-      loading(true);
-      pushLog('ok','Destinataire connecté — transfert en cours');
-      hide(ui.stepCode);
-      show(ui.progressWrap);
-      ui.progressText.textContent='Connecté ! Envoi en cours...';
-      sendFile();
+      expireTimer=setTimeout(function(){
+        pushLog('warn','Code expiré (15 min)');
+        msg('Le code a expiré. Réessayez.','err');
+        resetShare();
+      },15*60*1000);
+    }
+
+    function retryPeer(){
+      code=genCode();
+      peer.destroy();
+      peer=new Peer(code);
+      peer.on('open',function(){pushLog('ok','Code : '+code);showCode();});
+      peer.on('connection',onConnection);
+      peer.on('error',function(e){
+        if(e.type==='unavailable-id')retryPeer();
+        else{loading(false);msg('Erreur de connexion. Réessayez.','err');ui.shareBtn.disabled=false;ui.shareBtn.textContent='Partager';}
+      });
+    }
+
+    function onConnection(c){
+      clearTimeout(expireTimer);
+      conn=c;
+      conn.on('open',function(){
+        loading(true);
+        pushLog('ok','Destinataire connecté — transfert en cours');
+        hide(ui.stepCode);
+        show(ui.progressWrap);
+        ui.progressText.textContent='Connecté ! Envoi en cours...';
+        sendFile();
+      });
+      conn.on('close',function(){
+        if(!fileToSend)return;
+        pushLog('warn','Connexion perdue');
+        msg('Connexion interrompue.','err');
+        resetShare();
+      });
+    }
+
+    peer.on('open',function(){
+      pushLog('ok','Code : '+code);
+      showCode();
     });
-  });
-
-  peer.on('error',function(e){
-    loading(false);
-    msg('Erreur de connexion. Réessayez.','err');
-    ui.shareBtn.disabled=false;
-    ui.shareBtn.textContent='Partager';
-  });
+    peer.on('connection',onConnection);
+    peer.on('error',function(e){
+      if(e.type==='unavailable-id')retryPeer();
+      else{loading(false);msg('Erreur de connexion. Réessayez.','err');ui.shareBtn.disabled=false;ui.shareBtn.textContent='Partager';}
+    });
+  }
 };
 
 function sendFile(){
-  var total=Math.ceil(fileBuf.byteLength/CHUNK);
+  var total=Math.ceil(fileBuf.length/CHUNK);
   var meta={type:'meta',name:fileToSend.name,size:fileToSend.size,total:total};
   conn.send(JSON.stringify(meta));
 
@@ -235,12 +274,12 @@ function sendFile(){
       }
       return;
     }
-    var s=idx*CHUNK,e=Math.min(s+CHUNK,fileBuf.byteLength);
-    conn.send(fileBuf.slice(s,e));
+    var s=idx*CHUNK,e=Math.min(s+CHUNK,fileBuf.length);
+    conn.send(fileBuf.subarray(s,e).buffer);
     idx++;
     ui.progressFill.style.width=Math.round(idx/total*100)+'%';
     ui.progressText.textContent='Envoi... '+idx+'/'+total;
-    setTimeout(next,1);
+    setTimeout(next,5);
   }
   next();
 }
@@ -287,6 +326,14 @@ function startReceive(code){
       ui.progressText.textContent='Connecté ! Réception...';
       msg('Réception du fichier...','info');
     });
+    conn.on('close',function(){
+      loading(false);
+      msg('Connexion perdue — l\'expéditeur a peut-être expiré.','err');
+      pushLog('warn','Connexion perdue (expéditeur déconnecté)');
+      hide(ui.progressWrap);
+      show(document.getElementById('panelRecv'));
+      if(peer)peer.destroy();
+    });
 
     var recvMeta=null;
 
@@ -299,8 +346,9 @@ function startReceive(code){
         }
         return;
       }
-      if(data instanceof ArrayBuffer){
-        recvChunks.push(data);
+      var dataBuf = data instanceof ArrayBuffer ? data : ArrayBuffer.isView(data) ? data.buffer : null;
+      if(dataBuf){
+        recvChunks.push(dataBuf);
         var total=recvMeta?recvMeta.total:recvChunks.length;
         var pct=Math.round(recvChunks.length/total*100);
         ui.progressFill.style.width=Math.min(95,pct)+'%';
@@ -382,6 +430,9 @@ ui.codeInput.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&ui.codeInput.value.trim()){
     ui.recvBtn.click();
   }
+});
+ui.codeInput.addEventListener('input',function(){
+  this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
 });
 
 ui.shareAgain.onclick=function(){document.getElementById('tabShare').click()};
