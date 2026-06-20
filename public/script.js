@@ -1,183 +1,287 @@
+var CHUNK = 65536;
+var SHARE_CODE = null;
+var peer = null;
+var conn = null;
+var fileToSend = null;
+var fileBuf = null;
+var recvChunks = [];
+
 var ui = {};
-var els = 'status,dropZone,fileInput,browseBtn,stepSelect,stepUpload,stepQR,stepDone,fileName,fileSize,progressWrap,progressFill,progressText,shareBtn,qrContainer,qrHint,dlLink,recvProgress,recvFill,recvText,recvCard,recvName,recvSize,recvDownload,shareAgain'.split(',');
 
-els.forEach(function (k) { ui[k] = document.getElementById(k); });
+'status,stepMode,dropZone,fileInput,stepFileInfo,fileName,fileSize,shareBtn,stepCode,codeDisplay,qrContainer,stepRecv,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain'.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
 
-function show(el) { el.classList.remove('hidden'); }
-function hide(el) { el.classList.add('hidden'); }
+function show(el){el.classList.remove('hidden')}
+function hide(el){el.classList.add('hidden')}
 
-function setStatus(text, type) {
-  ui.status.className = 'msg msg-' + (type || 'info');
-  ui.status.textContent = text;
+function msg(t,type){
+  ui.status.className='msg msg-'+(type||'info');
+  ui.status.textContent=t;
   show(ui.status);
 }
 
-function fmtSize(b) {
-  if (!b) return '0 B';
-  var k = 1024, s = ['B', 'KB', 'MB', 'GB'];
-  return parseFloat((b / Math.pow(k, Math.floor(Math.log(b) / Math.log(k)))).toFixed(1)) + ' ' + s[Math.floor(Math.log(b) / Math.log(k))];
+function fmtSize(b){
+  if(!b)return'0 B';
+  var k=1024,s=['B','KB','MB','GB'];
+  return parseFloat((b/Math.pow(k,Math.floor(Math.log(b)/Math.log(k)))).toFixed(1))+' '+s[Math.floor(Math.log(b)/Math.log(k))];
 }
 
-function makeQR(text) {
-  ui.qrContainer.innerHTML = '';
-  new QRCode(ui.qrContainer, { text: text, width: 190, height: 190, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
+function makeQR(t){
+  ui.qrContainer.innerHTML='';
+  new QRCode(ui.qrContainer,{text:t,width:180,height:180,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
 }
 
-// ---- AES Encryption ----
-
-async function encryptFile(file) {
-  var key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
-  var rawKey = new Uint8Array(await crypto.subtle.exportKey('raw', key));
-  var buf = await file.arrayBuffer();
-  var iv = crypto.getRandomValues(new Uint8Array(12));
-  var enc = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, buf);
-  var pkt = new Uint8Array(12 + enc.byteLength);
-  pkt.set(iv, 0);
-  pkt.set(new Uint8Array(enc), 12);
-  return { encrypted: pkt, key: rawKey };
-}
-
-function keyToB64(key) {
-  return btoa(String.fromCharCode.apply(null, key));
+function genCode(){
+  return Math.random().toString(36).slice(2,8).toUpperCase();
 }
 
 // ---- Sender ----
 
-function selectFile(file) {
-  if (file.size > 500 * 1024 * 1024) { alert('File too large (max 500 MB)'); return; }
-  ui.fileName.textContent = file.name;
-  ui.fileSize.textContent = fmtSize(file.size);
-  hide(ui.stepSelect);
-  show(ui.stepUpload);
-  hide(ui.stepQR);
+ui.dropZone.onclick=function(){ui.fileInput.click()};
+ui.dropZone.ondragover=function(e){e.preventDefault();ui.dropZone.classList.add('drag-over')};
+ui.dropZone.ondragleave=function(){ui.dropZone.classList.remove('drag-over')};
+ui.dropZone.ondrop=function(e){
+  e.preventDefault();ui.dropZone.classList.remove('drag-over');
+  if(e.dataTransfer.files.length)onFile(e.dataTransfer.files[0]);
+};
+ui.fileInput.onchange=function(){
+  if(ui.fileInput.files.length)onFile(ui.fileInput.files[0]);
+};
+
+function onFile(f){
+  if(f.size>500*1024*1024){alert('File too large (max 500 MB)');return}
+  fileToSend=f;
+  ui.fileName.textContent=f.name;
+  ui.fileSize.textContent=fmtSize(f.size);
+  hide(ui.dropZone);
+  show(ui.stepFileInfo);
+  hide(ui.stepCode);
   hide(ui.stepDone);
   hide(ui.progressWrap);
-  ui.shareBtn.textContent = 'Encrypt & Generate QR Code';
-  ui.shareBtn.disabled = false;
-  ui.shareBtn._file = file;
-}
-
-async function startUpload() {
-  var file = ui.shareBtn._file;
-  if (!file) return;
-  ui.shareBtn.disabled = true;
-  ui.shareBtn.textContent = 'Encrypting...';
-  show(ui.progressWrap);
-  ui.progressFill.style.width = '0%';
-  ui.progressText.textContent = 'Encrypting...';
+  msg('','');
   hide(ui.status);
-
-  try {
-    var result = await encryptFile(file);
-    var encrypted = result.encrypted;
-    var keyB64 = keyToB64(result.key);
-    var blob = new Blob([encrypted], { type: 'application/octet-stream' });
-
-    ui.progressText.textContent = 'Uploading...';
-    var fd = new FormData();
-    fd.append('file', blob, file.name + '.enc');
-
-    var xhr = new XMLHttpRequest();
-    xhr.upload.onprogress = function (e) {
-      if (e.lengthComputable) ui.progressFill.style.width = Math.min(90, e.loaded / e.total * 100) + '%';
-    };
-    xhr.onload = function () {
-      try {
-        var r = JSON.parse(xhr.responseText);
-        if (r.status === 'success' && r.data && r.data.url) {
-          var dlUrl = r.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-          var base = location.origin + location.pathname.replace(/\/+$/, '');
-          var qr = base + '#dl=' + encodeURIComponent(dlUrl) + '&key=' + encodeURIComponent(keyB64);
-          ui.progressFill.style.width = '100%';
-          ui.progressText.textContent = 'Done!';
-          showQR(qr);
-        } else { fail('Upload failed'); }
-      } catch (e) { fail('Upload failed'); }
-    };
-    xhr.onerror = function () { fail('Network error'); };
-    xhr.open('POST', 'https://tmpfiles.org/api/v1/upload');
-    xhr.send(fd);
-  } catch (e) { fail('Encryption error'); }
-
-  function fail(msg) { setStatus(msg, 'err'); ui.shareBtn.disabled = false; ui.shareBtn.textContent = 'Try Again'; }
 }
 
-function showQR(qrContent) {
-  hide(ui.stepUpload);
-  hide(ui.progressWrap);
-  show(ui.stepQR);
-  makeQR(qrContent);
-  ui.dlLink.href = qrContent;
-  show(ui.dlLink);
-  setStatus('File encrypted & uploaded. Share the QR code!', 'ok');
+ui.shareBtn.onclick=function(){
+  if(!fileToSend)return;
+  ui.shareBtn.disabled=true;
+  ui.shareBtn.textContent='Starting...';
+  show(ui.progressWrap);
+  ui.progressText.textContent='Connecting...';
+  msg('Creating secure connection...','info');
+
+  peer=new Peer();
+
+  peer.on('open',function(id){
+    SHARE_CODE=id;
+    var reader=new FileReader();
+    reader.onload=function(e){
+      fileBuf=e.target.result;
+      ui.codeDisplay.textContent=id;
+      hide(ui.stepFileInfo);
+      hide(ui.progressWrap);
+      show(ui.stepCode);
+
+      var url=location.origin+location.pathname.replace(/\/+$/,'')+'#'+id;
+      makeQR(url);
+      msg('Share this code, or scan the QR code','ok');
+    };
+    reader.readAsArrayBuffer(fileToSend);
+  });
+
+  peer.on('connection',function(c){
+    conn=c;
+    conn.on('open',function(){
+      hide(ui.stepCode);
+      show(ui.progressWrap);
+      ui.progressText.textContent='Connected! Sending...';
+      sendFile();
+    });
+  });
+
+  peer.on('error',function(e){
+    msg('Connection error. Try again.','err');
+    ui.shareBtn.disabled=false;
+    ui.shareBtn.textContent='Share';
+  });
+};
+
+function sendFile(){
+  var total=Math.ceil(fileBuf.byteLength/CHUNK);
+  var meta={type:'meta',name:fileToSend.name,size:fileToSend.size,total:total};
+  conn.send(JSON.stringify(meta));
+
+  var idx=0;
+  function next(){
+    if(idx>=total||conn.readyState!=='open'){
+      if(idx>=total){
+        conn.send('DONE');
+        ui.progressFill.style.width='100%';
+        ui.progressText.textContent='Sent!';
+        msg('File sent successfully!','ok');
+        showDone('sent');
+      }
+      return;
+    }
+    var s=idx*CHUNK,e=Math.min(s+CHUNK,fileBuf.byteLength);
+    conn.send(fileBuf.slice(s,e));
+    idx++;
+    ui.progressFill.style.width=Math.round(idx/total*100)+'%';
+    ui.progressText.textContent='Sending... '+idx+'/'+total;
+    setTimeout(next,1);
+  }
+  next();
+}
+
+function showDone(type){
+  show(ui.stepDone);
+  if(type==='sent'){
+    ui.recvName.textContent=fileToSend.name;
+    ui.recvSize.textContent=fmtSize(fileToSend.size);
+    hide(ui.recvDownload);
+  }
 }
 
 // ---- Receiver ----
 
-function handleShare(hash) {
-  var p = new URLSearchParams(hash.replace(/^#/, ''));
-  var dlUrl = p.get('dl');
-  var keyB64 = p.get('key');
-  if (!dlUrl || !keyB64) return false;
+function startReceive(code){
+  hide(ui.stepMode);
+  show(ui.progressWrap);
+  ui.progressText.textContent='Connecting...';
+  msg('Connecting to '+code+'...','info');
 
-  hide(ui.stepSelect);
-  hide(ui.stepUpload);
-  hide(ui.stepQR);
-  show(ui.stepDone);
-  hide(ui.recvCard);
-  show(ui.recvProgress);
-  ui.recvText.textContent = 'Downloading...';
-  setStatus('Downloading encrypted file...', 'info');
+  peer=new Peer();
 
-  var key = new Uint8Array(atob(keyB64).split('').map(function (c) { return c.charCodeAt(0); }));
+  peer.on('open',function(){
+    conn=peer.connect(code,{reliable:true});
+    recvChunks=[];
 
-  fetch(dlUrl).then(function (r) {
-    if (!r.ok) throw new Error('Download failed (' + r.status + ')');
-    return r.arrayBuffer();
-  }).then(async function (encBuf) {
-    ui.recvFill.style.width = '50%';
-    ui.recvText.textContent = 'Decrypting...';
-    var iv = new Uint8Array(encBuf.slice(0, 12));
-    var data = encBuf.slice(12);
-    var ck = await crypto.subtle.importKey('raw', key, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    var dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, ck, data);
-    ui.recvFill.style.width = '100%';
-    ui.recvText.textContent = 'Ready!';
-    var blob = new Blob([dec]);
-    var url = URL.createObjectURL(blob);
-    ui.recvDownload.href = url;
-    ui.recvDownload.download = 'received_file';
-    ui.recvName.textContent = 'received_file';
-    ui.recvSize.textContent = fmtSize(blob.size);
-    hide(ui.recvProgress);
-    show(ui.recvCard);
-    setStatus('File decrypted! Tap Download to save.', 'ok');
-  }).catch(function (e) {
-    ui.recvText.textContent = 'Failed';
-    setStatus('Error: ' + e.message, 'err');
+    var timeout=setTimeout(function(){
+      if(!conn||!conn.open){
+        msg('Connection timed out. Check the code.','err');
+        hide(ui.progressWrap);
+        show(ui.stepMode);
+        if(peer)peer.destroy();
+      }
+    },30000);
+
+    conn.on('open',function(){
+      clearTimeout(timeout);
+      ui.progressText.textContent='Connected! Receiving...';
+      msg('Receiving file...','info');
+    });
+
+    var recvMeta=null;
+
+    conn.on('data',function(data){
+      if(typeof data==='string'){
+        if(data==='DONE'&&recvMeta){
+          finishRecv(recvMeta);
+        }else{
+          try{recvMeta=JSON.parse(data);if(recvMeta.type==='meta')ui.progressText.textContent='Receiving... 0 / '+recvMeta.total+' chunks'}catch(e){}
+        }
+        return;
+      }
+      if(data instanceof ArrayBuffer){
+        recvChunks.push(data);
+        var total=recvMeta?recvMeta.total:recvChunks.length;
+        var pct=Math.round(recvChunks.length/total*100);
+        ui.progressFill.style.width=Math.min(95,pct)+'%';
+        ui.progressText.textContent='Receiving... '+recvChunks.length+' / '+(recvMeta?recvMeta.total:'?')+' chunks';
+
+        if(recvMeta&&recvChunks.length===recvMeta.total){
+          finishRecv(recvMeta);
+        }
+      }
+    });
   });
 
-  return true;
+  peer.on('error',function(e){
+    if(e.type==='peer-unavailable'){
+      msg('Code not found. Check the code and try again.','err');
+    }else{
+      msg('Error: '+e.type,'err');
+    }
+    hide(ui.progressWrap);
+    show(ui.stepMode);
+  });
+}
+
+function finishRecv(meta){
+  if(recvChunks.length===0){msg('No data received','err');return}
+  ui.progressFill.style.width='100%';
+  ui.progressText.textContent='Complete!';
+  var blob=new Blob(recvChunks);
+  var url=URL.createObjectURL(blob);
+  var name=meta?meta.name:'received_file';
+  ui.recvName.textContent=name;
+  ui.recvSize.textContent=fmtSize(blob.size);
+  ui.recvDownload.href=url;
+  ui.recvDownload.download=name;
+  hide(ui.progressWrap);
+  show(ui.stepDone);
+  show(ui.recvDownload);
+  msg('File received!','ok');
 }
 
 // ---- Init ----
 
-(function () {
-  if (!handleShare(location.hash)) show(ui.stepSelect);
-  window.addEventListener('hashchange', function () { location.reload(); });
+(function(){
+  var hash=location.hash.replace(/^#/,'').trim();
+  if(hash){
+    SHARE_CODE=hash;
+    startReceive(hash);
+  }else{
+    show(ui.stepMode);
+  }
+  window.addEventListener('hashchange',function(){location.reload()});
 })();
 
-// ---- Events ----
+// ---- UI ----
 
-ui.dropZone.onclick = function () { ui.fileInput.click(); };
-ui.dropZone.ondragover = function (e) { e.preventDefault(); ui.dropZone.classList.add('drag-over'); };
-ui.dropZone.ondragleave = function () { ui.dropZone.classList.remove('drag-over'); };
-ui.dropZone.ondrop = function (e) {
-  e.preventDefault(); ui.dropZone.classList.remove('drag-over');
-  if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+ui.codeDisplay.onclick=function(){
+  if(SHARE_CODE){
+    navigator.clipboard.writeText(SHARE_CODE).catch(function(){});
+    var old=ui.codeDisplay.textContent;
+    ui.codeDisplay.textContent='Copied!';
+    setTimeout(function(){ui.codeDisplay.textContent=old},1500);
+  }
 };
-ui.fileInput.onchange = function () {
-  if (ui.fileInput.files.length) selectFile(ui.fileInput.files[0]);
+
+ui.recvBtn.onclick=function(){
+  var code=ui.codeInput.value.trim();
+  if(code)startReceive(code);
 };
-ui.shareBtn.onclick = startUpload;
-ui.shareAgain.onclick = function () { location.hash = ''; location.reload(); };
+
+ui.codeInput.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&ui.codeInput.value.trim()){
+    ui.recvBtn.click();
+  }
+});
+
+ui.shareAgain.onclick=function(){
+  location.hash='';
+  location.reload();
+};
+
+// Tab switching
+document.getElementById('tabShare').onclick=function(){
+  document.getElementById('tabShare').classList.add('active');
+  document.getElementById('tabRecv').classList.remove('active');
+  show(document.getElementById('panelShare'));
+  hide(document.getElementById('panelRecv'));
+};
+document.getElementById('tabRecv').onclick=function(){
+  document.getElementById('tabRecv').classList.add('active');
+  document.getElementById('tabShare').classList.remove('active');
+  show(document.getElementById('panelRecv'));
+  hide(document.getElementById('panelShare'));
+};
+
+// Cancel share
+document.getElementById('cancelShare').onclick=function(){
+  if(peer){peer.destroy();peer=null}
+  conn=null;
+  SHARE_CODE=null;
+  location.hash='';
+  location.reload();
+};

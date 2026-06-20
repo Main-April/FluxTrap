@@ -9,21 +9,39 @@
 <body>
 <div class="container">
   <h1>WiShare</h1>
-  <p class="subtitle">Encrypted file sharing via QR code</p>
+  <p class="subtitle">Peer-to-peer file sharing</p>
 
   <div id="status" class="msg hidden"></div>
 
-  <div id="stepSelect" class="card hidden">
-    <div class="drop-zone" id="dropZone">
-      <div class="drop-icon">📁</div>
-      <p class="drop-text">Tap to choose a file</p>
-      <p class="or-text">or drag & drop</p>
-      <button class="btn" id="browseBtn">Browse</button>
-      <input type="file" id="fileInput">
+  <!-- Initial screen -->
+  <div id="stepMode" class="card hidden">
+    <div class="tabs">
+      <button class="tab active" id="tabShare">Share</button>
+      <button class="tab" id="tabRecv">Receive</button>
+    </div>
+
+    <!-- Share tab -->
+    <div id="panelShare">
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon">📁</div>
+        <p class="drop-text">Choose a file to share</p>
+        <p class="or-text">or drag & drop</p>
+        <input type="file" id="fileInput">
+      </div>
+    </div>
+
+    <!-- Receive tab -->
+    <div id="panelRecv" class="hidden">
+      <p style="color:#8b8fa3;font-size:0.85rem;margin-bottom:10px">Enter the share code to receive a file</p>
+      <div class="input-row">
+        <input type="text" id="codeInput" class="code-input" placeholder="Enter code" maxlength="20" autocomplete="off">
+        <button class="btn btn-primary" id="recvBtn" style="width:auto">Receive</button>
+      </div>
     </div>
   </div>
 
-  <div id="stepUpload" class="card hidden">
+  <!-- File info + Share -->
+  <div id="stepFileInfo" class="card hidden">
     <div class="file-card">
       <span class="file-icon">📄</span>
       <div class="file-body">
@@ -31,25 +49,27 @@
         <div class="file-size" id="fileSize"></div>
       </div>
     </div>
-    <button class="btn btn-primary" id="shareBtn">Encrypt & Generate QR Code</button>
-    <div id="progressWrap" class="hidden">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <div class="progress-text" id="progressText">Preparing...</div>
-    </div>
+    <button class="btn btn-primary" id="shareBtn">Share</button>
   </div>
 
-  <div id="stepQR" class="card hidden">
+  <!-- Share code + QR -->
+  <div id="stepCode" class="card hidden">
+    <p class="code-label">Share this code <span style="color:#555;font-size:0.75rem">(tap to copy)</span></p>
+    <div class="code-big" id="codeDisplay">---</div>
     <div class="qr-wrap" id="qrContainer"></div>
-    <p id="qrHint">Scan with any phone to download</p>
-    <a id="dlLink" class="dl-link" target="_blank">Open download page</a>
+    <p style="color:#8b8fa3;font-size:0.8rem;text-align:center">Or scan the QR code</p>
+    <button class="btn btn-sm mt-8" id="cancelShare" style="width:100%">Cancel</button>
   </div>
 
+  <!-- Progress -->
+  <div id="progressWrap" class="card hidden">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">Preparing...</div>
+  </div>
+
+  <!-- Done -->
   <div id="stepDone" class="card hidden">
-    <div id="recvProgress" class="hidden">
-      <div class="progress-bar"><div class="progress-fill" id="recvFill"></div></div>
-      <div class="progress-text" id="recvText">Downloading...</div>
-    </div>
-    <div id="recvCard" class="file-card hidden">
+    <div class="file-card">
       <span class="file-icon">📥</span>
       <div class="file-body">
         <div class="file-name" id="recvName"></div>
@@ -57,14 +77,13 @@
       </div>
       <a class="dl-btn" id="recvDownload" download>Download</a>
     </div>
-    <button class="btn btn-primary mt-8" id="shareAgain">Share a File</button>
+    <button class="btn btn-primary mt-8" id="shareAgain">Share Another</button>
   </div>
 
-  <footer>
-    AES-256-GCM &bull; Encrypted before upload &bull; tmpfiles.org
-  </footer>
+  <footer>Direct P2P &bull; WebRTC &bull; No server</footer>
 </div>
 
+<script src="peerjs.min.js"></script>
 <script src="qrcode.min.js"></script>
 <script src="script.js"></script>
 </body>
