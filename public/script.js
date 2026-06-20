@@ -531,17 +531,18 @@ function setupPreview(mime, url, blob, name){
 function renderPreview(kind, url, blob, name){
   if(!ui.recvPreviewBox)return;
   var box=ui.recvPreviewBox;
+  var dl='<a class="btn primary small" href="'+url+'" download="'+escHtml(name)+'" style="margin-top:12px;width:100%;justify-content:center"><i class="fa-solid fa-download"></i> Télécharger</a>';
   var common='max-width:100%;border-radius:12px;display:block;margin:0 auto';
   if(kind==='image'){
-    box.innerHTML='<img src="'+url+'" alt="'+escHtml(name)+'" style="'+common+'">';
+    box.innerHTML='<img src="'+url+'" alt="'+escHtml(name)+'" style="'+common+'">'+dl;
   }else if(kind==='video'){
-    box.innerHTML='<video src="'+url+'" controls style="'+common+';max-height:420px;width:100%"></video>';
+    box.innerHTML='<video src="'+url+'" controls style="'+common+';max-height:420px;width:100%"></video>'+dl;
   }else if(kind==='audio'){
-    box.innerHTML='<audio src="'+url+'" controls style="width:100%"></audio>';
+    box.innerHTML='<audio src="'+url+'" controls style="width:100%"></audio>'+dl;
   }else if(kind==='pdf'){
-    box.innerHTML='<iframe src="'+url+'" style="width:100%;height:480px;border:0;border-radius:12px;background:#fff"></iframe>';
+    box.innerHTML='<iframe src="'+url+'" style="width:100%;height:480px;border:0;border-radius:12px;background:#fff"></iframe>'+dl;
   }else if(kind==='text'){
-    box.innerHTML='<pre style="max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;padding:12px;border-radius:12px;background:rgba(127,127,127,.08)"></pre>';
+    box.innerHTML='<pre style="max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:13px;padding:12px;border-radius:12px;background:rgba(127,127,127,.08)"></pre>'+dl;
     var pre=box.querySelector('pre');
     blob.slice(0,20000).text().then(function(t){
       pre.textContent=t+(blob.size>20000?'\n\n… (aperçu tronqué)':'');
