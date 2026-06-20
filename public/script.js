@@ -1,4 +1,4 @@
-var CHUNK = 65536;
+var CHUNK = 262144;
 var SHARE_CODE = null;
 var peer = null;
 var conn = null;
@@ -100,18 +100,40 @@ var ui = {};
 var loadingBar=document.getElementById('loadingBar');
 function loading(on){if(loadingBar)loadingBar.classList.toggle('active',on)}
 
-var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview';
+var ids = 'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview,transferAnim';
 ids.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
 ui.dropZone=ui.stepMode;
 
 function show(el){if(el)el.classList.remove('hidden')}
 function hide(el){if(el)el.classList.add('hidden')}
+function showAnim(on){
+  if(ui.transferAnim)ui.transferAnim.classList.toggle('hidden',!on);
+}
 
 function msg(t,type){
   if(!ui.status)return;
   ui.status.className='msg msg-'+(type||'info');
   ui.status.textContent=t;
   show(ui.status);
+}
+
+function downloadBlob(blob, name){
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  var a=document.createElement('a');
+  a.download=name;
+  document.body.appendChild(a);
+  function clickURL(url){
+    a.href=url;
+    a.click();
+    setTimeout(function(){document.body.removeChild(a);if(url.startsWith('blob:'))URL.revokeObjectURL(url)},5000);
+  }
+  if(isIOS && blob.size<50*1024*1024){
+    var r=new FileReader();
+    r.onload=function(e){clickURL(e.target.result)};
+    r.readAsDataURL(blob);
+  }else{
+    clickURL(URL.createObjectURL(blob));
+  }
 }
 
 function fmtSize(b){
@@ -159,7 +181,7 @@ function showFilePreview(file, container){
 }
 
 function resetShare(){
-  loading(false);
+  loading(false);showAnim(false);
   sendQueue=[];sendQueueIdx=0;sendFileBuf=null;
   if(peer){peer.destroy();peer=null}
   conn=null;
@@ -370,6 +392,7 @@ function sendFile(){
   var total=Math.ceil(sendFileBuf.length/CHUNK);
   var meta={type:'meta',name:f.name,size:f.size,total:total,mime:f.type||''};
   conn.send(JSON.stringify(meta));
+  showAnim(true);
 
   var idx=0;
   function next(){
@@ -377,6 +400,7 @@ function sendFile(){
       if(idx>=total){
         try{conn.send('DONE')}catch(e){}
         loading(false);
+        showAnim(false);
         if(ui.progressFill)ui.progressFill.style.width='100%';
         if(ui.progressText)ui.progressText.textContent='Envoyé : '+f.name;
         showToast(f.name+' envoyé ('+(sendQueueIdx+1)+'/'+sendQueue.length+')','ok');
@@ -386,12 +410,16 @@ function sendFile(){
       }
       return;
     }
+    if(conn.dataChannel && conn.dataChannel.bufferedAmount > 524288){
+      setTimeout(next,5);
+      return;
+    }
     var s=idx*CHUNK,e=Math.min(s+CHUNK,sendFileBuf.length);
     try{conn.send(sendFileBuf.slice(s,e).buffer)}catch(err){showToast('Erreur d\'envoi','warn');return}
     idx++;
     if(ui.progressFill)ui.progressFill.style.width=Math.round(idx/total*100)+'%';
     if(ui.progressText)ui.progressText.textContent='('+(sendQueueIdx+1)+'/'+sendQueue.length+') Envoi... '+idx+'/'+total;
-    setTimeout(next,10);
+    if(idx%8===0){setTimeout(next,0)}else{next()}
   }
   next();
 }
@@ -453,7 +481,7 @@ function startReceive(code){
     var timeout=setTimeout(function(){
       if(!conn||!conn.open){
         console.warn('[WiShare][recv] timeout 30s, conn.open=',conn&&conn.open);
-        loading(false);
+        loading(false);showAnim(false);
         showToast('Délai dépassé pour le code : '+code,'warn');
         msg('Délai de connexion dépassé. Vérifiez le code.','err');
         hide(ui.progressWrap);
@@ -468,13 +496,14 @@ function startReceive(code){
       showToast('Connecté à l\'expéditeur — réception en cours','ok');
       if(ui.progressText)ui.progressText.textContent='Connecté ! Réception...';
       msg('Réception du fichier...','info');
+      showAnim(true);
     });
     conn.on('close',function(){
       if(recvFiles.length>0){
         showRecvList();
         showToast(recvFiles.length+' fichier'+(recvFiles.length>1?'s':'')+' reçu'+(recvFiles.length>1?'s':''),'ok');
       }else{
-        loading(false);
+        loading(false);showAnim(false);
         showToast('Connexion perdue (expéditeur déconnecté)','warn');
         msg('Connexion perdue — l\'expéditeur a peut-être expiré.','err');
         hide(ui.progressWrap);
@@ -578,26 +607,27 @@ function getPreviewKind(type){
 function showPreviewModal(kind, url, blob, name){
   var overlay=document.createElement('div');
   overlay.className='preview-overlay';
-  var dl='<a class="btn primary small" href="'+url+'" download="'+escHtml(name)+'" style="width:100%;justify-content:center"><i class="fa-solid fa-download"></i> Télécharger</a>';
   var html='<div class="preview-overlay-bg"></div><div class="preview-overlay-media"><button class="preview-overlay-close" style="position:absolute;top:8px;right:8px;z-index:1"><i class="fa-solid fa-xmark"></i></button>';
   if(kind==='image'){
-    html+='<img src="'+url+'" alt="'+escHtml(name)+'" style="max-width:100%;max-height:80vh;border-radius:8px">'+dl;
+    html+='<img src="'+url+'" alt="'+escHtml(name)+'" style="max-width:100%;max-height:80vh;border-radius:8px">';
   }else if(kind==='video'){
-    html+='<video src="'+url+'" controls style="max-width:100%;max-height:75vh;border-radius:8px;width:auto"></video>'+dl;
+    html+='<video src="'+url+'" controls style="max-width:100%;max-height:75vh;border-radius:8px;width:auto"></video>';
   }else if(kind==='audio'){
-    html+='<audio src="'+url+'" controls style="width:320px;max-width:100%"></audio>'+dl;
+    html+='<audio src="'+url+'" controls style="width:320px;max-width:100%"></audio>';
   }else if(kind==='pdf'){
-    html+='<iframe src="'+url+'"></iframe>'+dl;
+    html+='<iframe src="'+url+'"></iframe>';
   }else if(kind==='text'){
-    html+='<pre></pre>'+dl;
+    html+='<pre></pre>';
   }
-  html+='</div>';
+  html+='<button class="btn primary small preview-dl-btn" style="width:100%;justify-content:center"><i class="fa-solid fa-download"></i> Télécharger</button></div>';
   overlay.innerHTML=html;
   document.body.appendChild(overlay);
   requestAnimationFrame(function(){overlay.classList.add('active')});
   overlay.onclick=function(e){
     if(e.target===overlay||e.target.closest('.preview-overlay-close')){overlay.classList.remove('active');setTimeout(function(){if(overlay.parentNode)overlay.parentNode.removeChild(overlay)},300)}
   };
+  var dlBtn=overlay.querySelector('.preview-dl-btn');
+  if(dlBtn)dlBtn.onclick=function(){downloadBlob(blob,name)};
   if(kind==='text'){
     var pre=overlay.querySelector('pre');
     if(pre)blob.slice(0,20000).text().then(function(t){pre.textContent=t+(blob.size>20000?'\n\n… (aperçu tronqué)':'')}).catch(function(){pre.textContent='Aperçu indisponible.'});
@@ -629,12 +659,19 @@ function showRecvList(){
   for(var i=0;i<recvFiles.length;i++){
     var f=recvFiles[i];
     var pk=getPreviewKind(f.mime);
-    html+='<div class="recv-file"><span class="recv-file-icon"><i class="'+getFileIcon(f.mime)+'"></i></span><span class="recv-file-name">'+escHtml(f.name)+'</span><span class="recv-file-size">'+fmtSize(f.size)+'</span>'+(pk?'<button class="recv-file-preview" data-idx="'+i+'" title="Aperçu"><i class="fa-solid fa-eye"></i></button>':'')+'<a class="recv-file-dl" href="'+f.url+'" download="'+escHtml(f.name)+'"><i class="fa-solid fa-download"></i></a></div>';
+    html+='<div class="recv-file"><span class="recv-file-icon"><i class="'+getFileIcon(f.mime)+'"></i></span><span class="recv-file-name">'+escHtml(f.name)+'</span><span class="recv-file-size">'+fmtSize(f.size)+'</span>'+(pk?'<button class="recv-file-preview" data-idx="'+i+'" title="Aperçu"><i class="fa-solid fa-eye"></i></button>':'')+'<button class="recv-file-dl" data-idx="'+i+'" title="Télécharger"><i class="fa-solid fa-download"></i></button></div>';
   }
   var box=document.getElementById('recvFileList');
   if(box){
     box.innerHTML=html;
     box.onclick=function(e){
+      var dl=e.target.closest('.recv-file-dl');
+      if(dl){
+        var idx=parseInt(dl.getAttribute('data-idx'),10);
+        var f=recvFiles[idx];
+        if(f)downloadBlob(f.blob,f.name);
+        return;
+      }
       var btn=e.target.closest('.recv-file-preview');
       if(!btn)return;
       var idx=parseInt(btn.getAttribute('data-idx'),10);
@@ -651,6 +688,7 @@ function showRecvList(){
   }else{
     hide(ui.recvDownload);
   }
+  showAnim(false);
   hide(ui.progressWrap);
   show(ui.stepDone);
   msg('','');
@@ -676,6 +714,11 @@ function showRecvList(){
 })();
 
 // ---- UI ----
+
+if(ui.recvDownload)ui.recvDownload.onclick=function(e){
+  e.preventDefault();
+  if(recvFiles.length===1)downloadBlob(recvFiles[0].blob,recvFiles[0].name);
+};
 
 if(ui.codeDisplay)ui.codeDisplay.onclick=function(){
   if(SHARE_CODE){

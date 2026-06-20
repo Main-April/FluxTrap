@@ -253,6 +253,15 @@ nav a:hover{color:var(--fg)}
 .code-display:hover{border-color:var(--brand);transform:scale(1.01)}
 .code-display:active{transform:scale(0.98)}
 
+/* ── Transfer animation ── */
+.transfer-anim{margin-top:12px;overflow:hidden;border-radius:10px;background:rgba(26,25,46,0.4);padding:8px 12px;position:relative}
+.transfer-beam{display:flex;gap:10px;justify-content:center;align-items:center;padding:4px 0}
+.stream-icon{font-size:18px;color:var(--brand);animation:stream-bounce 1.8s ease-in-out infinite;opacity:0.2}
+@keyframes stream-bounce{
+  0%,100%{transform:translateY(0);opacity:0.2}
+  50%{transform:translateY(-8px);opacity:1;color:var(--ok)}
+}
+
 /* ── Progress ── */
 .progress-wrap{margin-top:16px}
 .progress-bar{height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden}
@@ -384,7 +393,7 @@ footer i.fa-heart{color:var(--brand);margin:0 2px}
 .recv-file-icon{flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--brand-soft);color:var(--brand);font-size:16px}
 .recv-file-name{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recv-file-size{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex-shrink:0}
-.recv-file-dl{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--gradient-brand);color:#fff;font-size:13px;text-decoration:none;transition:opacity var(--anim-duration),transform var(--anim-duration)}
+.recv-file-dl{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--gradient-brand);color:#fff;font-size:13px;border:none;cursor:pointer;font-family:var(--font-sans);transition:opacity var(--anim-duration),transform var(--anim-duration)}
 .recv-file-dl:hover{opacity:.85;transform:scale(1.05)}
 .recv-file-preview{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--card-border);background:rgba(26,25,46,0.6);color:var(--muted);font-size:13px;cursor:pointer;transition:all var(--anim-duration);font-family:var(--font-sans)}
 .recv-file-preview:hover{background:rgba(44,42,74,0.4);border-color:var(--brand);color:var(--brand)}
@@ -393,7 +402,7 @@ footer i.fa-heart{color:var(--brand);margin:0 2px}
 @media(max-width:768px){
   .page-inner{padding:0 16px}
   .header-inner{padding:12px 16px;max-width:100%}
-  .hero{padding-top:20px}
+  .hero{max-width:none;padding-top:20px}
   .hero h1{font-size:clamp(2rem,6.5vw,3.2rem);letter-spacing:-.04em; margin : 0;}
   .hero p{font-size:1.05rem;max-width:100%}
   .stats{gap:8px}
