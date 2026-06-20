@@ -9,6 +9,7 @@ var recvChunks = [];
 var recvFiles = [];
 var historyEntries = [];
 var STORAGE_KEY = 'wishare-history';
+var STATS_KEY = 'wishare-stats';
 
 function showToast(msg, level){
   level = level || 'info';
@@ -18,7 +19,7 @@ function showToast(msg, level){
   if(!c)return;
   var el = document.createElement('div');
   el.className = 'toast ' + level;
-  el.innerHTML = '<span class="toast-icon"><i class="' + icon + '"></i></span><span class="toast-msg">' + msg + '</span>';
+  el.innerHTML = '<span class="toast-icon"><i class="' + icon + '"></i></span><span class="toast-msg">' + escHtml(msg) + '</span>';
   c.appendChild(el);
   setTimeout(function(){el.classList.add('out');setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},300)},3500);
 }
@@ -28,7 +29,10 @@ function addHistory(files, size, count){
   historyEntries = [entry].concat(historyEntries).slice(0,50);
   try{localStorage.setItem(STORAGE_KEY, JSON.stringify(historyEntries))}catch(e){}
   renderHistory();
-  updateStats();
+  var s=loadStats();
+  s.uploads++;s.files+=count;s.bytes+=size;
+  saveStats(s);
+  updateStats(s);
 }
 
 function renderHistory(){
@@ -53,20 +57,24 @@ function renderHistory(){
 
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-function updateStats(){
-  var totalUploads = historyEntries.length;
-  var totalFiles = historyEntries.reduce(function(s,h){return s+h.count},0);
-  var totalBytes = historyEntries.reduce(function(s,h){return s+h.size},0);
-  var el = document.getElementById('statUploads');if(el)el.textContent = totalUploads;
-  el = document.getElementById('statFiles');if(el)el.textContent = totalFiles;
-  el = document.getElementById('statBytes');if(el)el.textContent = fmtSize(totalBytes);
+function loadStats(){
+  try{return JSON.parse(localStorage.getItem(STATS_KEY))||{uploads:0,files:0,bytes:0}}catch(e){}
+  return {uploads:0,files:0,bytes:0};
+}
+function saveStats(s){
+  try{localStorage.setItem(STATS_KEY,JSON.stringify(s))}catch(e){}
+}
+function updateStats(s){
+  s=s||loadStats();
+  var el = document.getElementById('statUploads');if(el)el.textContent = s.uploads;
+  el = document.getElementById('statFiles');if(el)el.textContent = s.files;
+  el = document.getElementById('statBytes');if(el)el.textContent = fmtSize(s.bytes);
 }
 
 document.getElementById('clearHistory').onclick=function(){
   historyEntries = [];
   try{localStorage.removeItem(STORAGE_KEY)}catch(e){}
   renderHistory();
-  updateStats();
   showToast('Historique effacé','warn');
 };
 
@@ -76,8 +84,7 @@ document.getElementById('clearHistory').onclick=function(){
     if(raw) historyEntries = JSON.parse(raw);
   }catch(e){}
   renderHistory();
-  updateStats();
-  showToast('WiShare prêt','ok');
+  updateStats(loadStats());
 })();
 
 (function(){
@@ -262,6 +269,13 @@ function startPeer(){
       if(ui.progressText)ui.progressText.textContent='Connecté ! Envoi en cours...';
       sendFile();
     });
+    conn.on('data',function(d){
+      if(typeof d==='string'&&d==='REFUSE'){
+        showToast('Fichier refusé par le destinataire','warn');
+        sendQueueIdx++;
+        setTimeout(function(){sendNextInQueue()},100);
+      }
+    });
     conn.on('close',function(){
       if(sendQueue.length===0)return;
       showToast('Connexion perdue','warn');
@@ -444,6 +458,11 @@ function startReceive(code){
           recvDone=true;if(pendingBlobs===0)finishRecv(recvMeta);
         }else{
           try{var m=JSON.parse(data);if(m&&m.type==='meta'){
+            if(m.size>500*1024*1024){
+              showToast(m.name+' trop volumineux (max 500 Mo)','warn');recvMeta=null;
+              if(conn)try{conn.send('REFUSE')}catch(e){}
+              return;
+            }
             recvMeta=m;recvChunks=[];recvDone=false;
             var idx=recvFiles.length+1;
             if(ui.progressText)ui.progressText.textContent='['+idx+'/?) '+m.name+' 0/'+m.total;
