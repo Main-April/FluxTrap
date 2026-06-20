@@ -1,4 +1,4 @@
-# WiShare
+# FluxTrap
 
 Partage de fichiers P2P chiffré via WebRTC — 100% statique, sans serveur ni hébergement tiers.
 

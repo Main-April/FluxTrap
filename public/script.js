@@ -335,7 +335,7 @@ function startPeer(){
     connected=true;
     conn=c;
     conn.on('open',function(){
-      console.log('[WiShare][send] conn open, conn.open=',conn.open,'reliable=',conn.reliable,'serialization=',conn.serialization);
+      console.log('[FluxTrap][send] conn open, conn.open=',conn.open,'reliable=',conn.reliable,'serialization=',conn.serialization);
       loading(true);
       showToast('Destinataire connecté — transfert en cours','ok');
       hide(ui.stepCode);
@@ -362,16 +362,16 @@ function startPeer(){
   }
 
   peer.on('open',function(){
-    console.log('[WiShare][send] peer open, id=',peer.id);
+    console.log('[FluxTrap][send] peer open, id=',peer.id);
     showToast('Code : '+code,'ok');
     showCode();
   });
   peer.on('connection',function(c){
-    console.log('[WiShare][send] incoming connection from', c.peer);
+    console.log('[FluxTrap][send] incoming connection from', c.peer);
     onConnection(c);
   });
   peer.on('error',function(e){
-    console.error('[WiShare][send] peer error:', e.type, e);
+    console.error('[FluxTrap][send] peer error:', e.type, e);
     if(e.type==='unavailable-id'){retryPeer();return}
     loading(false);
     if(e.type==='network'){
@@ -474,13 +474,13 @@ function startReceive(code){
   peer=new Peer();
 
   peer.on('open',function(){
-    console.log('[WiShare][recv] peer open, id=',peer.id,'-> connecting to', code);
+    console.log('[FluxTrap][recv] peer open, id=',peer.id,'-> connecting to', code);
     conn=peer.connect(code,{reliable:true,serialization:'binary'});
     recvChunks=[];
 
     var timeout=setTimeout(function(){
       if(!conn||!conn.open){
-        console.warn('[WiShare][recv] timeout 30s, conn.open=',conn&&conn.open);
+        console.warn('[FluxTrap][recv] timeout 30s, conn.open=',conn&&conn.open);
         loading(false);showAnim(false);
         showToast('Délai dépassé pour le code : '+code,'warn');
         msg('Délai de connexion dépassé. Vérifiez le code.','err');
@@ -491,7 +491,7 @@ function startReceive(code){
     },30000);
 
     conn.on('open',function(){
-      console.log('[WiShare][recv] conn open, conn.open=',conn.open,'serialization=',conn.serialization);
+      console.log('[FluxTrap][recv] conn open, conn.open=',conn.open,'serialization=',conn.serialization);
       clearTimeout(timeout);
       showToast('Connecté à l\'expéditeur — réception en cours','ok');
       if(ui.progressText)ui.progressText.textContent='Connecté ! Réception...';
@@ -564,7 +564,7 @@ function startReceive(code){
   });
 
   peer.on('error',function(e){
-    console.error('[WiShare][recv] peer error:', e.type, e);
+    console.error('[FluxTrap][recv] peer error:', e.type, e);
     loading(false);
     if(e.type==='peer-unavailable'){
       showToast('Code introuvable','warn');
