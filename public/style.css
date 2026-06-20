@@ -119,7 +119,7 @@ body{
 
 /* ── Layout ── */
 .page-wrap{position:relative;min-height:100vh;overflow:hidden}
-.page-inner{max-width:720px;margin:0 auto;padding:0 24px}
+.page-inner{max-width:720px;margin:0 auto}
 
 /* ── Header ── */
 header{
