@@ -8,18 +8,6 @@ var recvChunks = [];
 var historyEntries = [];
 var STORAGE_KEY = 'wishare-history';
 
-var ICE_CONFIG = {
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
-    ]
-  }
-};
-
 function showToast(msg, level){
   level = level || 'info';
   var icons = {info:'fa-solid fa-circle-info',ok:'fa-solid fa-circle-check',warn:'fa-solid fa-circle-exclamation'};
@@ -214,7 +202,7 @@ function onFile(f){
 
 function startPeer(){
   var code=genCode();
-  peer=new Peer(code, ICE_CONFIG);
+    peer=new Peer(code);
   var expireTimer;
   var connected=false;
 
@@ -326,7 +314,7 @@ function startReceive(code){
   msg('Connexion à '+code+'...','info');
   loading(true);
 
-  peer=new Peer(ICE_CONFIG);
+  peer=new Peer();
 
   peer.on('open',function(){
     conn=peer.connect(code,{reliable:true});
