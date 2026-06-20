@@ -5,10 +5,93 @@ var conn = null;
 var fileToSend = null;
 var fileBuf = null;
 var recvChunks = [];
+var logs = [];
+var historyEntries = [];
+var logCount = 0;
+var STORAGE_KEY = 'wishare-history';
+
+function pushLog(level, msg){
+  var id = Date.now() + '-' + (Math.random()*1e6|0);
+  var ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  logs = [{id:id,ts:ts,level:level,msg:msg}].concat(logs).slice(0,30);
+  renderLogs();
+}
+
+function renderLogs(){
+  var list = document.getElementById('logList');
+  document.getElementById('logCount').textContent = logs.length + ' events';
+  if(logs.length===0){
+    list.innerHTML = '<div class="empty"><i class="fa-regular fa-folder-open" style="font-size:1.4rem;display:block;margin-bottom:8px;color:rgba(183,122,255,0.4)"></i>No events yet...</div>';
+    return;
+  }
+  var html = '';
+  logs.forEach(function(l){
+    html += '<div class="log-item"><span class="log-time">'+l.ts+'</span><span class="log-level '+l.level+'">'+l.level+'</span><span class="log-msg">'+l.msg+'</span></div>';
+  });
+  list.innerHTML = html;
+}
+
+function addHistory(files, size, count){
+  var entry = {id:Date.now()+'-'+(Math.random()*1e6|0), date:new Date().toISOString(), count:count, size:size, files:files};
+  historyEntries = [entry].concat(historyEntries).slice(0,50);
+  try{localStorage.setItem(STORAGE_KEY, JSON.stringify(historyEntries))}catch(e){}
+  renderHistory();
+  updateStats();
+}
+
+function renderHistory(){
+  var empty = document.getElementById('historyEmpty');
+  var list = document.getElementById('historyList');
+  if(historyEntries.length===0){
+    empty.classList.remove('hidden');
+    list.classList.add('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.classList.remove('hidden');
+  var html = '';
+  historyEntries.forEach(function(h){
+    var names = h.files.slice(0,2).map(function(f){return f.name}).join(', ');
+    var extra = h.count > 2 ? ' + ' + (h.count-2) + ' more' : '';
+    var date = new Date(h.date).toLocaleString(undefined,{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    html += '<div class="history-item"><span class="history-icon"><i class="fa-solid fa-file-zipper"></i></span><div class="history-info"><div class="history-name">'+escHtml(names)+escHtml(extra)+'</div><div class="history-meta">'+h.count+' file'+(h.count>1?'s':'')+' · '+fmtSize(h.size)+' · '+date+'</div></div><i class="fa-solid fa-chevron-right history-arrow"></i></div>';
+  });
+  list.innerHTML = html;
+}
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function updateStats(){
+  var totalUploads = historyEntries.length;
+  var totalFiles = historyEntries.reduce(function(s,h){return s+h.count},0);
+  var totalBytes = historyEntries.reduce(function(s,h){return s+h.size},0);
+  document.getElementById('statUploads').textContent = totalUploads;
+  document.getElementById('statFiles').textContent = totalFiles;
+  document.getElementById('statBytes').textContent = fmtSize(totalBytes);
+}
+
+document.getElementById('clearHistory').onclick=function(){
+  historyEntries = [];
+  try{localStorage.removeItem(STORAGE_KEY)}catch(e){}
+  renderHistory();
+  updateStats();
+  pushLog('warn','History cleared');
+};
+
+(function(){
+  try{
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) historyEntries = JSON.parse(raw);
+  }catch(e){}
+  renderHistory();
+  updateStats();
+  pushLog('info','Session started — ready to share');
+})();
 
 var ui = {};
 
-'status,stepMode,dropZone,fileInput,stepFileInfo,fileName,fileSize,shareBtn,stepCode,codeDisplay,qrContainer,stepRecv,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain'.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
+'status,stepMode,fileInput,stepFileInfo,fileName,fileSize,shareBtn,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain'.split(',').forEach(function(k){ui[k]=document.getElementById(k)});
+ui.dropZone=ui.stepMode;
 
 function show(el){el.classList.remove('hidden')}
 function hide(el){el.classList.add('hidden')}
@@ -33,6 +116,25 @@ function makeQR(t){
 function genCode(){
   return Math.random().toString(36).slice(2,8).toUpperCase();
 }
+
+function resetShare(){
+  fileToSend=null;fileBuf=null;
+  if(peer){peer.destroy();peer=null}
+  conn=null;
+  SHARE_CODE=null;
+  hide(ui.stepFileInfo);
+  hide(ui.stepCode);
+  hide(ui.progressWrap);
+  hide(ui.stepDone);
+  show(ui.stepMode);
+  ui.shareBtn.disabled=false;
+  ui.shareBtn.textContent='Share';
+  ui.codeDisplay.textContent='---';
+  msg('','');
+  hide(ui.status);
+}
+
+document.getElementById('backBtn').onclick=resetShare;
 
 // ---- Sender ----
 
@@ -59,6 +161,7 @@ function onFile(f){
   hide(ui.progressWrap);
   msg('','');
   hide(ui.status);
+  pushLog('info','File selected: '+f.name+' ('+fmtSize(f.size)+')');
 }
 
 ui.shareBtn.onclick=function(){
@@ -69,10 +172,13 @@ ui.shareBtn.onclick=function(){
   ui.progressText.textContent='Connecting...';
   msg('Creating secure connection...','info');
 
+  pushLog('info','Creating secure connection...');
+
   peer=new Peer();
 
   peer.on('open',function(id){
     SHARE_CODE=id;
+    pushLog('ok','Peer ID: '+id+' — waiting for receiver');
     var reader=new FileReader();
     reader.onload=function(e){
       fileBuf=e.target.result;
@@ -91,6 +197,7 @@ ui.shareBtn.onclick=function(){
   peer.on('connection',function(c){
     conn=c;
     conn.on('open',function(){
+      pushLog('ok','Receiver connected — starting transfer');
       hide(ui.stepCode);
       show(ui.progressWrap);
       ui.progressText.textContent='Connected! Sending...';
@@ -118,6 +225,8 @@ function sendFile(){
         ui.progressFill.style.width='100%';
         ui.progressText.textContent='Sent!';
         msg('File sent successfully!','ok');
+        pushLog('ok','Sent '+fileToSend.name+' ('+fmtSize(fileToSend.size)+')');
+        addHistory([{name:fileToSend.name,size:fileToSend.size,type:fileToSend.type}], fileToSend.size, 1);
         showDone('sent');
       }
       return;
@@ -144,7 +253,7 @@ function showDone(type){
 // ---- Receiver ----
 
 function startReceive(code){
-  hide(ui.stepMode);
+  hide(document.getElementById('panelRecv'));
   show(ui.progressWrap);
   ui.progressText.textContent='Connecting...';
   msg('Connecting to '+code+'...','info');
@@ -152,20 +261,23 @@ function startReceive(code){
   peer=new Peer();
 
   peer.on('open',function(){
+    pushLog('info','Connecting to peer: '+code);
     conn=peer.connect(code,{reliable:true});
     recvChunks=[];
 
     var timeout=setTimeout(function(){
       if(!conn||!conn.open){
         msg('Connection timed out. Check the code.','err');
+        pushLog('warn','Connection timed out for code: '+code);
         hide(ui.progressWrap);
-        show(ui.stepMode);
+        show(document.getElementById('panelRecv'));
         if(peer)peer.destroy();
       }
     },30000);
 
     conn.on('open',function(){
       clearTimeout(timeout);
+      pushLog('ok','Connected to sender — receiving file');
       ui.progressText.textContent='Connected! Receiving...';
       msg('Receiving file...','info');
     });
@@ -202,7 +314,7 @@ function startReceive(code){
       msg('Error: '+e.type,'err');
     }
     hide(ui.progressWrap);
-    show(ui.stepMode);
+    show(document.getElementById('panelRecv'));
   });
 }
 
@@ -221,6 +333,7 @@ function finishRecv(meta){
   show(ui.stepDone);
   show(ui.recvDownload);
   msg('File received!','ok');
+  pushLog('ok','Received '+name+' ('+fmtSize(blob.size)+')');
 }
 
 // ---- Init ----
@@ -229,9 +342,14 @@ function finishRecv(meta){
   var hash=location.hash.replace(/^#/,'').trim();
   if(hash){
     SHARE_CODE=hash;
+    hide(document.getElementById('panelShare'));
+    show(document.getElementById('panelRecv'));
+    document.getElementById('tabRecv').classList.add('active');
+    document.getElementById('tabShare').classList.remove('active');
     startReceive(hash);
   }else{
     show(ui.stepMode);
+    hide(document.getElementById('panelRecv'));
   }
   window.addEventListener('hashchange',function(){location.reload()});
 })();
@@ -258,30 +376,32 @@ ui.codeInput.addEventListener('keydown',function(e){
   }
 });
 
-ui.shareAgain.onclick=function(){
-  location.hash='';
-  location.reload();
-};
+ui.shareAgain.onclick=function(){document.getElementById('tabShare').click()};
 
 // Tab switching
 document.getElementById('tabShare').onclick=function(){
+  if(peer){peer.destroy();peer=null}
+  conn=null;
   document.getElementById('tabShare').classList.add('active');
   document.getElementById('tabRecv').classList.remove('active');
   show(document.getElementById('panelShare'));
   hide(document.getElementById('panelRecv'));
+  hide(ui.progressWrap);
+  hide(ui.stepDone);
+  resetShare();
 };
 document.getElementById('tabRecv').onclick=function(){
+  if(peer){peer.destroy();peer=null}
+  conn=null;
   document.getElementById('tabRecv').classList.add('active');
   document.getElementById('tabShare').classList.remove('active');
   show(document.getElementById('panelRecv'));
   hide(document.getElementById('panelShare'));
+  hide(ui.progressWrap);
+  hide(ui.stepDone);
 };
 
 // Cancel share
 document.getElementById('cancelShare').onclick=function(){
-  if(peer){peer.destroy();peer=null}
-  conn=null;
-  SHARE_CODE=null;
-  location.hash='';
-  location.reload();
+  resetShare();
 };
