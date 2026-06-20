@@ -118,7 +118,7 @@ body{
 
 /* ── Layout ── */
 .page-wrap{position:relative;min-height:100%;overflow:hidden}
-.page-inner{max-width:70%;margin:0 auto}
+.page-inner{max-width:70%;margin:0 auto;padding:0 16px}
 
 /* ── Header ── */
 header{
@@ -127,7 +127,7 @@ header{
   background:rgba(15,14,26,0.6);
   border-bottom:1px solid var(--card-border);
 }
-.header-inner{max-width:720px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.header-inner{max-width:70%;margin:0 auto;padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
 .logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px}
 .logo-icon{
   display:inline-flex;width:36px;height:36px;align-items:center;justify-content:center;
@@ -344,7 +344,7 @@ nav a:hover{color:var(--fg)}
 
 /* ── Footer ── */
 footer{border-top:1px solid var(--card-border);margin-top:40px}
-.footer-inner{max-width:720px;margin:0 auto;padding:24px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+.footer-inner{max-width:70%;margin:0 auto;padding:24px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
 footer i.fa-heart{color:var(--brand);margin:0 2px}
 
 /* ── Hidden ── */
@@ -403,8 +403,7 @@ footer i.fa-heart{color:var(--brand);margin:0 2px}
 
 /* ── Responsive ── */
 @media(max-width:768px){
-  .page-inner{padding:0 16px}
-  .header-inner{padding:12px 16px;max-width:100%}
+  .header-inner{max-width:100%;padding:12px 16px}
   .hero{max-width:none;padding-top:20px}
   .hero h1{font-size:clamp(2rem,6.5vw,3.2rem);letter-spacing:-.04em; margin : 0;}
   .hero p{font-size:1.05rem;max-width:100%}
