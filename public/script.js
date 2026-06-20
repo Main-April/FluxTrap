@@ -75,6 +75,7 @@ document.getElementById('clearHistory').onclick=function(){
   }catch(e){}
   renderHistory();
   updateStats();
+  showToast('WiShare prêt','ok');
 })();
 
 (function(){
@@ -230,6 +231,7 @@ function startPeer(){
     connected=true;
     conn=c;
     conn.on('open',function(){
+      console.log('[WiShare][send] conn open, conn.open=',conn.open,'reliable=',conn.reliable,'serialization=',conn.serialization);
       loading(true);
       showToast('Destinataire connecté — transfert en cours','ok');
       hide(ui.stepCode);
@@ -238,6 +240,7 @@ function startPeer(){
       sendFile();
     });
     conn.on('close',function(){
+      console.warn('[WiShare][send] conn closed');
       if(!fileToSend)return;
       showToast('Connexion perdue','warn');
       msg('Connexion interrompue.','err');
@@ -249,11 +252,16 @@ function startPeer(){
   }
 
   peer.on('open',function(){
+    console.log('[WiShare][send] peer open, id=',peer.id);
     showToast('Code : '+code,'ok');
     showCode();
   });
-  peer.on('connection',onConnection);
+  peer.on('connection',function(c){
+    console.log('[WiShare][send] incoming connection from', c.peer);
+    onConnection(c);
+  });
   peer.on('error',function(e){
+    console.error('[WiShare][send] peer error:', e.type, e);
     if(e.type==='unavailable-id'){retryPeer();return}
     loading(false);
     if(e.type==='network'){
@@ -271,11 +279,11 @@ function startPeer(){
 function sendFile(){
   var total=Math.ceil(fileBuf.length/CHUNK);
   var meta={type:'meta',name:fileToSend.name,size:fileToSend.size,total:total};
+  console.log('[WiShare][send] sendFile start, total chunks=',total,'conn.open=',conn.open);
   conn.send(JSON.stringify(meta));
 
   var idx=0;
   function next(){
-    // Error correct
     if(idx>=total||!conn.open){
       if(idx>=total){
         try{conn.send('DONE')}catch(e){}
@@ -285,12 +293,15 @@ function sendFile(){
         showToast('Fichier envoyé : '+fileToSend.name,'ok');
         addHistory([{name:fileToSend.name,size:fileToSend.size,type:fileToSend.type}], fileToSend.size, 1);
         showDone('sent');
+      }else{
+        console.warn('[WiShare][send] abandon à idx=',idx,'/',total,'conn.open=',conn.open);
       }
       return;
     }
     var s=idx*CHUNK,e=Math.min(s+CHUNK,fileBuf.length);
-    try{conn.send(fileBuf.slice(s,e).buffer)}catch(err){showToast('Erreur d\'envoi','warn');return}
+    try{conn.send(fileBuf.slice(s,e).buffer)}catch(err){console.error('[WiShare][send] erreur send chunk',idx,err);showToast('Erreur d\'envoi','warn');return}
     idx++;
+    if(idx<=3||idx===total)console.log('[WiShare][send] chunk',idx,'/',total,'envoyé');
     if(ui.progressFill)ui.progressFill.style.width=Math.round(idx/total*100)+'%';
     if(ui.progressText)ui.progressText.textContent='Envoi... '+idx+'/'+total;
     setTimeout(next,10);
@@ -319,11 +330,13 @@ function startReceive(code){
   peer=new Peer();
 
   peer.on('open',function(){
+    console.log('[WiShare][recv] peer open, id=',peer.id,'-> connecting to', code);
     conn=peer.connect(code,{reliable:true,serialization:'binary'});
     recvChunks=[];
 
     var timeout=setTimeout(function(){
       if(!conn||!conn.open){
+        console.warn('[WiShare][recv] timeout 30s, conn.open=',conn&&conn.open);
         loading(false);
         showToast('Délai dépassé pour le code : '+code,'warn');
         msg('Délai de connexion dépassé. Vérifiez le code.','err');
@@ -334,12 +347,14 @@ function startReceive(code){
     },30000);
 
     conn.on('open',function(){
+      console.log('[WiShare][recv] conn open, conn.open=',conn.open,'serialization=',conn.serialization);
       clearTimeout(timeout);
       showToast('Connecté à l\'expéditeur — réception en cours','ok');
       if(ui.progressText)ui.progressText.textContent='Connecté ! Réception...';
       msg('Réception du fichier...','info');
     });
     conn.on('close',function(){
+      console.warn('[WiShare][recv] conn closed, chunks reçus=',recvChunks.length);
       loading(false);
       showToast('Connexion perdue (expéditeur déconnecté)','warn');
       msg('Connexion perdue — l\'expéditeur a peut-être expiré.','err');
@@ -363,6 +378,7 @@ function startReceive(code){
     }
 
     conn.on('data',function(data){
+      console.log('[WiShare][recv] data reçu, type=', typeof data, data instanceof ArrayBuffer?'ArrayBuffer':(ArrayBuffer.isView(data)?'TypedArray':(data instanceof Blob?'Blob':typeof data)), data && data.byteLength!==undefined?data.byteLength:(data&&data.size!==undefined?data.size:''));
       if(typeof data==='string'){
         if(data==='DONE'&&recvMeta){
           if(pendingBlobs===0)finishRecv(recvMeta);
@@ -385,6 +401,7 @@ function startReceive(code){
   });
 
   peer.on('error',function(e){
+    console.error('[WiShare][recv] peer error:', e.type, e);
     loading(false);
     if(e.type==='peer-unavailable'){
       showToast('Code introuvable','warn');
