@@ -329,6 +329,12 @@ ui.dropZone.onclick=function(ev){
   if(ui.fileInput) ui.fileInput.click();
 };
 
+// Boutons picker
+var btnPickFiles=document.getElementById('btnPickFiles');
+var btnPickFolder=document.getElementById('btnPickFolder');
+if(btnPickFiles) btnPickFiles.onclick=function(e){ e.stopPropagation(); if(ui.fileInput) ui.fileInput.click(); };
+if(btnPickFolder) btnPickFolder.onclick=function(e){ e.stopPropagation(); if(ui.folderInput) ui.folderInput.click(); };
+
 // Input fichiers
 if(ui.fileInput) ui.fileInput.onchange=function(){
   if(ui.fileInput.files.length) onFiles(ui.fileInput.files);
