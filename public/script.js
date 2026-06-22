@@ -175,7 +175,7 @@ var ui={};
 var loadingBar=document.getElementById('loadingBar');
 function loading(on){ if(loadingBar) loadingBar.classList.toggle('active',on); }
 
-'status,stepMode,fileInput,folderInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview,transferAnim'
+'status,stepMode,fileInput,stepCode,codeDisplay,qrContainer,codeInput,recvBtn,progressWrap,progressFill,progressText,stepDone,recvName,recvSize,recvDownload,shareAgain,stepCodeBadge,stepCodeSub,filePreview,transferAnim'
   .split(',').forEach(function(k){ ui[k]=document.getElementById(k); });
 ui.dropZone=ui.stepMode;
 
@@ -332,19 +332,29 @@ ui.dropZone.onclick=function(ev){
 // Boutons picker
 var btnPickFiles=document.getElementById('btnPickFiles');
 var btnPickFolder=document.getElementById('btnPickFolder');
-if(btnPickFiles) btnPickFiles.onclick=function(e){ e.stopPropagation(); if(ui.fileInput) ui.fileInput.click(); };
-if(btnPickFolder) btnPickFolder.onclick=function(e){ e.stopPropagation(); if(ui.folderInput) ui.folderInput.click(); };
 
-// Input fichiers
+if(btnPickFiles) btnPickFiles.onclick=function(e){
+  e.stopPropagation();
+  if(ui.fileInput) ui.fileInput.click();
+};
+
+if(btnPickFolder) btnPickFolder.onclick=function(e){
+  e.stopPropagation();
+  // Créer l'input dynamiquement pour garantir webkitdirectory
+  var inp=document.createElement('input');
+  inp.type='file';
+  inp.multiple=true;
+  inp.webkitdirectory=true;
+  inp.onchange=function(){
+    if(inp.files.length) onFiles(inp.files);
+  };
+  inp.click();
+};
+
+// Input fichiers statique
 if(ui.fileInput) ui.fileInput.onchange=function(){
   if(ui.fileInput.files.length) onFiles(ui.fileInput.files);
   ui.fileInput.value='';
-};
-
-// Input dossier
-if(ui.folderInput) ui.folderInput.onchange=function(){
-  if(ui.folderInput.files.length) onFiles(ui.folderInput.files);
-  ui.folderInput.value='';
 };
 
 // ── Affichage liste fichiers à envoyer ────────
