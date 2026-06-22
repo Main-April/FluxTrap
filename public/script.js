@@ -779,6 +779,15 @@ if(tabRecv)tabRecv.onclick=function(){
 var cancelBtn=document.getElementById('cancelShare');
 if(cancelBtn)cancelBtn.onclick=function(){resetShare()};
 
+// Nav "Partager" button → switch to send tab then scroll
+var navSendBtn=document.getElementById('navSendBtn');
+if(navSendBtn)navSendBtn.onclick=function(e){
+  e.preventDefault();
+  var t=document.getElementById('tabShare');
+  if(t)t.click();
+  setTimeout(function(){var el=document.getElementById('upload');if(el)el.scrollIntoView({behavior:'smooth'})},50);
+};
+
 // Hero "Envoyer" button → switch to send tab then scroll
 var heroSendBtn=document.getElementById('heroSendBtn');
 if(heroSendBtn)heroSendBtn.onclick=function(e){
