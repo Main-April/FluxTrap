@@ -341,6 +341,17 @@ nav{display:flex;align-items:center;gap:4px}
   background:var(--brand);transform:translateY(-50%);
   animation:tp-fly 1.8s ease-in-out infinite, tp-pulse 1.8s ease-in-out infinite;
 }
+/* Mode réception : particules de droite vers gauche */
+@keyframes tp-fly-recv{
+  0%  {right:10%;left:auto;opacity:0;transform:scale(0.6) translateY(0)}
+  15% {opacity:1;transform:scale(1) translateY(0)}
+  80% {opacity:1;transform:scale(1) translateY(0)}
+  100%{right:85%;left:auto;opacity:0;transform:scale(0.6) translateY(0)}
+}
+.recv-mode .tp{
+  animation:tp-fly-recv 1.8s ease-in-out infinite, tp-pulse 1.8s ease-in-out infinite;
+  left:auto;
+}
 
 /* ── Progress ── */
 .progress-wrap{margin-top:0}

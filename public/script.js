@@ -155,8 +155,25 @@ ui.dropZone=ui.stepMode;
 
 function show(el){ if(el) el.classList.remove('hidden'); }
 function hide(el){ if(el) el.classList.add('hidden'); }
-function showAnim(on){
+function showAnim(on, mode){
   if(ui.transferAnim) ui.transferAnim.classList.toggle('hidden',!on);
+  if(on){
+    // mode 'send' : laptop → mobile  |  mode 'recv' : mobile → laptop
+    var left=document.getElementById('transferLeft');
+    var right=document.getElementById('transferRight');
+    var track=document.getElementById('transferTrack');
+    if(left&&right&&track){
+      if(mode==='recv'){
+        left.innerHTML='<i class="fa-solid fa-mobile-screen"></i>';
+        right.innerHTML='<i class="fa-solid fa-laptop"></i>';
+        track.classList.add('recv-mode');
+      } else {
+        left.innerHTML='<i class="fa-solid fa-laptop"></i>';
+        right.innerHTML='<i class="fa-solid fa-mobile-screen"></i>';
+        track.classList.remove('recv-mode');
+      }
+    }
+  }
 }
 function msg(t,type){
   if(!ui.status) return;
@@ -176,41 +193,17 @@ function makeQR(t){
 //  et on crée le lien/clic de façon synchrone
 // ══════════════════════════════════════════════
 
+// Crée une blob URL et la retourne (à utiliser dans les href des <a>)
+function makeBlobUrl(blob){
+  return URL.createObjectURL(blob);
+}
+
+// Téléchargement programmatique — uniquement pour desktop/Android
+// Sur iOS, on utilise de vrais <a href download> dans le DOM (voir renderRecvTree)
 function downloadBlob(blob, name){
-  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)
-    ||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-
-  if(isIOS){
-    // iOS (Safari ET Chrome iOS) : window.open sur blob: URL
-    // déclenche le popup natif "Enregistrer dans Fichiers"
-    var url=URL.createObjectURL(blob);
-    var w=window.open(url,'_blank');
-    // Si le popup est bloqué (rare), fallback data: URL dans l'onglet courant
-    if(!w){
-      var r=new FileReader();
-      r.onload=function(ev){
-        var a=document.createElement('a');
-        a.href=ev.target.result;
-        a.download=name;
-        a.target='_blank';
-        a.rel='noopener';
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function(){document.body.removeChild(a);},500);
-      };
-      r.readAsDataURL(blob);
-    }
-    // Révoquer après délai pour laisser le temps au navigateur de lire
-    setTimeout(function(){URL.revokeObjectURL(url);},30000);
-    return;
-  }
-
-  // Desktop & Android : blob URL + <a download>
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
-  a.href=url;
-  a.download=name;
-  a.style.display='none';
+  a.href=url; a.download=name; a.style.display='none';
   document.body.appendChild(a);
   a.click();
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},5000);
@@ -304,6 +297,7 @@ function countTreeFiles(node){
 }
 
 // Rend le tree en HTML côté receveur
+// Les boutons DL sont de vrais <a href=blob: download> — seule solution fiable sur iOS
 function renderRecvTree(node, depth){
   depth=depth||0;
   var html='';
@@ -325,6 +319,8 @@ function renderRecvTree(node, depth){
   node._files.forEach(function(f){
     var pk=getPreviewKind(f.mime);
     var idx=recvFiles.indexOf(f);
+    // Blob URL créée à la volée et intégrée dans le href — fonctionne sur iOS Safari + Chrome
+    var blobUrl=makeBlobUrl(f.blob);
     html+='<div class="tree-item tree-file">';
     html+='<div class="tree-row">';
     html+='<span class="tree-file-indent"></span>';
@@ -333,7 +329,7 @@ function renderRecvTree(node, depth){
     html+='<span class="tree-count">'+fmtSize(f.size)+'</span>';
     html+='<span class="tree-actions">';
     if(pk) html+='<button class="recv-file-preview" data-idx="'+idx+'" title="Aperçu"><i class="fa-solid fa-eye"></i></button>';
-    html+='<button class="recv-file-dl" data-idx="'+idx+'" title="Télécharger"><i class="fa-solid fa-download"></i></button>';
+    html+='<a class="recv-file-dl" href="'+escHtml(blobUrl)+'" download="'+escHtml(f.name)+'" title="Télécharger"><i class="fa-solid fa-download"></i></a>';
     html+='</span>';
     html+='</div></div>';
   });
@@ -531,7 +527,7 @@ function startPeer(){
       showToast('Destinataire connecté','ok');
       hide(ui.stepCode); show(ui.progressWrap);
       if(ui.progressText) ui.progressText.textContent='Envoi en cours...';
-      showAnim(true);
+      showAnim(true,'send');
       sendAllFiles();
     });
     conn.on('data',function(d){ if(typeof d==='string'&&d==='REFUSE'){ sendQueueIdx++; sendAllFiles(); } });
@@ -625,11 +621,14 @@ function sendOneFile(entry, onDone){
 function showDone(type){
   show(ui.stepDone); loading(false); showAnim(false);
   if(type==='sent'){
+    var n=sendQueue.length;
     var tot=sendQueue.reduce(function(s,e){return s+e.file.size;},0);
-    if(ui.recvName) ui.recvName.textContent=sendQueue.length+' fichier'+(sendQueue.length>1?'s':'')+' envoyé'+(sendQueue.length>1?'s':'');
+    if(ui.recvName) ui.recvName.textContent=n+' fichier'+(n>1?'s':'')+' envoyé'+(n>1?'s':'');
     if(ui.recvSize) ui.recvSize.textContent=fmtSize(tot);
     hide(ui.recvDownload);
-    // Afficher l'arborescence côté envoyeur dans stepDone
+    // Notification de fin côté envoyeur
+    showToast(n+' fichier'+(n>1?'s':'')+' envoyé'+(n>1?'s':', ')+' ('+fmtSize(tot)+')','ok');
+    // Arborescence côté envoyeur dans stepDone
     var box=document.getElementById('recvFileList');
     if(box&&_sendTree){
       box.innerHTML='<div class="file-tree recv-tree">'+renderSendTree(_sendTree,0)+'</div>';
@@ -669,26 +668,12 @@ function startReceive(code){
       clearTimeout(timeout);
       showToast('Connecté à l\'expéditeur','ok');
       if(ui.progressText) ui.progressText.textContent='Réception en cours...';
-      showAnim(true);
+      showAnim(true,'recv');
     });
 
     conn.on('close',function(){
       if(recvFiles.length>0){
-        // Notif globale seulement
-        var hasFolders=recvFiles.some(function(f){return f.path&&f.path.indexOf('/')!==-1;});
-        if(hasFolders){
-          // Identifier les dossiers racines uniques
-          var roots={};
-          recvFiles.forEach(function(f){
-            var seg=f.path&&f.path.split('/').filter(Boolean);
-            if(seg&&seg.length>1) roots[seg[0]]=true;
-          });
-          var rootNames=Object.keys(roots);
-          showToast((rootNames.length===1?rootNames[0]+' reçu':rootNames.length+' dossiers reçus'),'ok');
-        } else {
-          showToast(recvFiles.length+' fichier'+(recvFiles.length>1?'s':'')+' reçu'+(recvFiles.length>1?'s':''),'ok');
-        }
-        showRecvList();
+        showRecvListWithToast();
       } else {
         loading(false); showAnim(false);
         showToast('Connexion perdue','warn');
@@ -716,7 +701,7 @@ function startReceive(code){
 
     conn.on('data',function(data){
       if(typeof data==='string'){
-        if(data==='ALL_DONE'){ showRecvList(); return; }
+        if(data==='ALL_DONE'){ showRecvListWithToast(); return; }
         if(data==='DONE'&&recvMeta&&!recvDone){ recvDone=true; if(pendingBlobs===0) finishRecv(recvMeta); }
         else{
           try{
@@ -813,6 +798,25 @@ function showPreviewModal(kind,url,blob,name){
   if(kind==='text'){ var pre=overlay.querySelector('pre'); if(pre) blob.slice(0,20000).text().then(function(t){pre.textContent=t+(blob.size>20000?'\n\n…(tronqué)':'');}).catch(function(){pre.textContent='Aperçu indisponible.';}); }
 }
 
+function showRecvListWithToast(){
+  // Notification de fin de réception
+  var n=recvFiles.length;
+  var tot=recvFiles.reduce(function(s,f){return s+f.size;},0);
+  var hasFolders=recvFiles.some(function(f){return f.path&&f.path.indexOf('/')!==-1;});
+  if(hasFolders){
+    var roots={};
+    recvFiles.forEach(function(f){
+      var seg=f.path&&f.path.split('/').filter(Boolean);
+      if(seg&&seg.length>1) roots[seg[0]]=true;
+    });
+    var rootNames=Object.keys(roots);
+    showToast((rootNames.length===1?'"'+rootNames[0]+'" reçu':rootNames.length+' dossiers reçus')+' · '+fmtSize(tot),'ok');
+  } else {
+    showToast(n+' fichier'+(n>1?'s':'')+' reçu'+(n>1?'s':'')+' · '+fmtSize(tot),'ok');
+  }
+  showRecvList();
+}
+
 function showRecvList(){
   if(!ui.recvName||!ui.recvSize) return;
   loading(false);
@@ -855,20 +859,18 @@ function showRecvList(){
   }
 
   // Bouton télécharger tout (1 seul fichier)
+  // Vrai <a href=blob: download> — aucun JS, fonctionne sur iOS Safari + Chrome
   if(n===1){
     var last=recvFiles[0];
     if(ui.recvDownload){
+      var blobUrl=makeBlobUrl(last.blob);
+      ui.recvDownload.href=blobUrl;
+      ui.recvDownload.download=last.name;
       ui.recvDownload.innerHTML='<i class="fa-solid fa-download"></i> Télécharger';
-      // Supprimer tout ancien handler
-      var fresh=ui.recvDownload.cloneNode(true);
-      ui.recvDownload.parentNode.replaceChild(fresh,ui.recvDownload);
-      ui.recvDownload=fresh;
-      ui.recvDownload.removeAttribute('href');
-      ui.recvDownload.removeAttribute('download');
-      // Utiliser touchstart + click pour mobile
-      function doDownload(e){ e.preventDefault(); e.stopPropagation(); downloadBlob(last.blob,last.name); }
-      ui.recvDownload.addEventListener('click',doDownload);
-      ui.recvDownload.addEventListener('touchend',doDownload);
+      // Révoquer l'URL après usage
+      ui.recvDownload.onclick=function(){
+        setTimeout(function(){URL.revokeObjectURL(blobUrl);},10000);
+      };
     }
     show(ui.recvDownload);
   } else {

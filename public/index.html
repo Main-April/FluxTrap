@@ -122,8 +122,8 @@
         <div class="radial-bg"></div>
         <div class="relative">
           <div id="transferAnim" class="transfer-anim hidden">
-            <div class="transfer-track">
-              <div class="transfer-sender"><i class="fa-solid fa-laptop"></i></div>
+            <div class="transfer-track" id="transferTrack">
+              <div class="transfer-sender" id="transferLeft"><i class="fa-solid fa-laptop"></i></div>
               <div class="transfer-particles">
                 <span class="tp" style="animation-delay:0s"></span>
                 <span class="tp" style="animation-delay:0.3s"></span>
@@ -131,7 +131,7 @@
                 <span class="tp" style="animation-delay:0.9s"></span>
                 <span class="tp" style="animation-delay:1.2s"></span>
               </div>
-              <div class="transfer-receiver"><i class="fa-solid fa-mobile-screen"></i></div>
+              <div class="transfer-receiver" id="transferRight"><i class="fa-solid fa-mobile-screen"></i></div>
             </div>
           </div>
           <p class="progress-filename" id="progressText">Préparation...</p>
