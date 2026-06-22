@@ -25,17 +25,25 @@
         <span>FluxTrap</span>
       </div>
       <nav>
-        <a href="#upload"><i class="fa-solid fa-file-export"></i> Envoyer</a>
-        <a href="#recv"><i class="fa-solid fa-file-import"></i></i> Recevoir</a>
-        <a href="https://github.com/Main-April/FluxTrap/tree/main" target="_blank"><i class="fa-brands fa-github"></i> GitHub</a>
+        <a href="#how" class="nav-link"><i class="fa-solid fa-circle-question"></i> Comment ça marche</a>
+        <a href="https://github.com/Main-April/FluxTrap/tree/main" target="_blank" class="nav-link"><i class="fa-brands fa-github"></i> GitHub</a>
+        <a href="#upload" class="btn primary small nav-cta"><i class="fa-solid fa-arrow-up-from-bracket"></i> Partager</a>
       </nav>
     </div>
   </header>
 
   <main class="page-inner">
     <section class="hero">
+      <div class="hero-badge">
+        <span class="badge-dot"><span class="ring"></span><span class="solid"></span></span>
+        P2P · Chiffré · Sans compte
+      </div>
       <h1>Partagez tout,<br><span class="gradient-text">en un scan.</span></h1>
-      <p>Déposez un fichier. Un code et un QR sont générés instantanément.</p>
+      <p>Déposez un fichier — un QR code et un code de partage sont générés instantanément. Aucun serveur, aucun compte, aucune limite de vitesse.</p>
+      <div class="hero-cta">
+        <a href="#upload" class="btn primary hero-btn" id="heroSendBtn"><i class="fa-solid fa-arrow-up-from-bracket"></i> Envoyer un fichier</a>
+        <a href="#upload" class="btn ghost hero-btn" id="heroRecvBtn"><i class="fa-solid fa-arrow-down-to-bracket"></i> Recevoir</a>
+      </div>
       <div class="stats" id="statsRow">
         <div class="stat-card">
           <div class="shimmer"></div>
@@ -143,7 +151,34 @@
       </div>
     </section>
 
-    <section style="content-visibility:auto">
+    <section class="features-section" style="content-visibility:auto">
+      <p class="section-label">Pourquoi FluxTrap ?</p>
+      <h2 class="section-title">Simple. Rapide. Privé.</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-shield-halved"></i></div>
+          <h4>100 % privé</h4>
+          <p>Vos fichiers transitent directement entre les appareils (WebRTC P2P). Aucun serveur ne stocke vos données.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-bolt"></i></div>
+          <h4>Instantané</h4>
+          <p>Code et QR générés en moins d'une seconde. Pas d'upload préalable, pas d'attente.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-user-slash"></i></div>
+          <h4>Sans compte</h4>
+          <p>Aucune inscription, aucune adresse e-mail. Ouvrez la page, partagez, c'est tout.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fa-solid fa-folder-open"></i></div>
+          <h4>Multi-fichiers</h4>
+          <p>Envoyez plusieurs fichiers ou dossiers entiers en une seule session, jusqu'à 500 Mo chacun.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" style="content-visibility:auto">
       <p class="section-label">Fonctionnement</p>
       <h2 class="section-title">Trois étapes. Zéro friction.</h2>
       <div class="steps">
@@ -188,7 +223,11 @@
 
   <footer>
     <div class="footer-inner">
-      <span><i class="fa-solid fa-arrow-right-arrow-left" style="color:var(--brand)"></i> FluxTrap</span>
+      <span class="footer-brand"><i class="fa-solid fa-arrow-right-arrow-left" style="color:var(--brand)"></i> FluxTrap</span>
+      <div class="footer-links">
+        <a href="#how">Comment ça marche</a>
+        <a href="https://github.com/Main-April/FluxTrap/tree/main" target="_blank"><i class="fa-brands fa-github"></i> GitHub</a>
+      </div>
       <span>Fait avec <i class="fa-solid fa-heart"></i> &middot; April. et April.CORP, 2026</span>
     </div>
   </footer>

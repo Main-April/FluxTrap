@@ -774,6 +774,30 @@ if(tabRecv)tabRecv.onclick=function(){
 var cancelBtn=document.getElementById('cancelShare');
 if(cancelBtn)cancelBtn.onclick=function(){resetShare()};
 
+// Hero "Envoyer" button → switch to send tab then scroll
+var heroSendBtn=document.getElementById('heroSendBtn');
+if(heroSendBtn)heroSendBtn.onclick=function(e){
+  e.preventDefault();
+  var t=document.getElementById('tabShare');
+  if(t)t.click();
+  setTimeout(function(){
+    var el=document.getElementById('upload');
+    if(el)el.scrollIntoView({behavior:'smooth'});
+  },50);
+};
+
+// Hero "Recevoir" button → switch to receive tab then scroll
+var heroRecvBtn=document.getElementById('heroRecvBtn');
+if(heroRecvBtn)heroRecvBtn.onclick=function(e){
+  e.preventDefault();
+  var t=document.getElementById('tabRecv');
+  if(t)t.click();
+  setTimeout(function(){
+    var el=document.getElementById('upload');
+    if(el)el.scrollIntoView({behavior:'smooth'});
+  },50);
+};
+
 // Preview lightbox
 document.addEventListener('click',function(e){
   var img=e.target.closest('.file-preview-img.clickable');
