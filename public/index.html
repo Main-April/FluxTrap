@@ -79,11 +79,13 @@
             <div class="drop-icon-ring"></div>
             <div class="drop-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
           </div>
-          <h3>Déposez un fichier ici</h3>
-          <p>Fichiers multiples &amp; dossiers supportés &middot; Jusqu'à 500 Mo</p>
+          <h3>Déposez fichiers ou dossiers</h3>
+          <p>Arborescence préservée &middot; Multi-fichiers &middot; Jusqu'à 500 Mo par fichier</p>
           <div class="btn-row">
             <input type="file" id="fileInput" class="hidden" multiple>
-            <button class="btn primary" type="button"><i class="fa-solid fa-file-arrow-up"></i> Choisir des fichiers</button>
+            <input type="file" id="folderInput" class="hidden" multiple webkitdirectory>
+            <button class="btn primary" type="button" onclick="document.getElementById('fileInput').click()"><i class="fa-solid fa-file-arrow-up"></i> Fichiers</button>
+            <button class="btn ghost" type="button" onclick="document.getElementById('folderInput').click()"><i class="fa-solid fa-folder-open"></i> Dossier</button>
           </div>
           <div class="features">
             <span><i class="fa-solid fa-lock"></i> Chiffré</span>
