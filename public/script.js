@@ -340,14 +340,22 @@ if(btnPickFiles) btnPickFiles.onclick=function(e){
 
 if(btnPickFolder) btnPickFolder.onclick=function(e){
   e.stopPropagation();
-  // Créer l'input dynamiquement pour garantir webkitdirectory
   var inp=document.createElement('input');
   inp.type='file';
   inp.multiple=true;
-  inp.webkitdirectory=true;
+  inp.setAttribute('webkitdirectory','');
+  inp.setAttribute('directory','');
+  inp.style.cssText='position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;';
+  document.body.appendChild(inp);
   inp.onchange=function(){
     if(inp.files.length) onFiles(inp.files);
+    document.body.removeChild(inp);
   };
+  // Annulation sans sélection : nettoyer après focus retour
+  window.addEventListener('focus', function cleanup(){
+    window.removeEventListener('focus', cleanup);
+    setTimeout(function(){ if(inp.parentNode) document.body.removeChild(inp); }, 2000);
+  }, {once: true});
   inp.click();
 };
 
