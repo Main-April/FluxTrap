@@ -121,18 +121,22 @@
       <div id="progressWrap" class="result-card hidden" style="margin-top:0">
         <div class="radial-bg"></div>
         <div class="relative">
-          <p style="font-size:14px;color:var(--muted);margin-bottom:8px" id="progressText">Préparation...</p>
-          <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <div id="transferAnim" class="transfer-anim hidden">
-            <div class="transfer-beam">
-              <i class="fa-regular fa-file stream-icon" style="animation-delay:0s"></i>
-              <i class="fa-regular fa-file-image stream-icon" style="animation-delay:0.25s"></i>
-              <i class="fa-regular fa-file-zipper stream-icon" style="animation-delay:0.5s"></i>
-              <i class="fa-regular fa-file-video stream-icon" style="animation-delay:0.75s"></i>
-              <i class="fa-regular fa-file-audio stream-icon" style="animation-delay:1s"></i>
-              <i class="fa-regular fa-file-pdf stream-icon" style="animation-delay:1.25s"></i>
+            <div class="transfer-track">
+              <div class="transfer-sender"><i class="fa-solid fa-laptop"></i></div>
+              <div class="transfer-particles">
+                <span class="tp" style="animation-delay:0s"></span>
+                <span class="tp" style="animation-delay:0.3s"></span>
+                <span class="tp" style="animation-delay:0.6s"></span>
+                <span class="tp" style="animation-delay:0.9s"></span>
+                <span class="tp" style="animation-delay:1.2s"></span>
+              </div>
+              <div class="transfer-receiver"><i class="fa-solid fa-mobile-screen"></i></div>
             </div>
           </div>
+          <p class="progress-filename" id="progressText">Préparation...</p>
+          <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" id="progressFill"></div></div>
+          <p class="progress-stats" id="progressStats"></p>
         </div>
       </div>
 
