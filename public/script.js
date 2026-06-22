@@ -272,12 +272,12 @@ function renderSendTree(node, depth){
     var count=countTreeFiles(child);
     var uid='sd-'+Math.random().toString(36).slice(2);
     html+='<div class="tree-item tree-dir">';
-    html+='<span class="tree-row" data-toggle="'+uid+'">';
+    html+='<div class="tree-row" data-toggle="'+uid+'">';
     html+='<i class="fa-solid fa-chevron-right tree-chevron"></i>';
     html+='<i class="fa-solid fa-folder tree-folder-icon"></i>';
     html+='<span class="tree-name">'+escHtml(dirName)+'</span>';
     html+='<span class="tree-count">'+count+' fichier'+(count>1?'s':'')+'</span>';
-    html+='</span>';
+    html+='</div>';
     html+='<div class="tree-children hidden" id="'+uid+'">';
     html+=renderSendTree(child, depth+1);
     html+='</div></div>';
@@ -287,12 +287,12 @@ function renderSendTree(node, depth){
     var f=e.file;
     var active=sendQueue.indexOf(e)===sendQueueIdx?'tree-active':'';
     html+='<div class="tree-item tree-file '+active+'" data-entry-path="'+escHtml(e.path)+'">';
-    html+='<span class="tree-row">';
+    html+='<div class="tree-row">';
     html+='<span class="tree-file-indent"></span>';
     html+='<i class="'+getFileIcon(f.type)+' tree-file-icon"></i>';
     html+='<span class="tree-name">'+escHtml(f.name)+'</span>';
     html+='<span class="tree-count">'+fmtSize(f.size)+'</span>';
-    html+='</span></div>';
+    html+='</div></div>';
   });
   return html;
 }
@@ -312,12 +312,12 @@ function renderRecvTree(node, depth){
     var count=countTreeFiles(child);
     var uid='rd-'+Math.random().toString(36).slice(2);
     html+='<div class="tree-item tree-dir">';
-    html+='<span class="tree-row" data-toggle="'+uid+'">';
+    html+='<div class="tree-row" data-toggle="'+uid+'">';
     html+='<i class="fa-solid fa-chevron-right tree-chevron"></i>';
     html+='<i class="fa-solid fa-folder tree-folder-icon"></i>';
     html+='<span class="tree-name">'+escHtml(dirName)+'</span>';
     html+='<span class="tree-count">'+count+' fichier'+(count>1?'s':'')+'</span>';
-    html+='</span>';
+    html+='</div>';
     html+='<div class="tree-children hidden" id="'+uid+'">';
     html+=renderRecvTree(child, depth+1);
     html+='</div></div>';
@@ -326,17 +326,16 @@ function renderRecvTree(node, depth){
     var pk=getPreviewKind(f.mime);
     var idx=recvFiles.indexOf(f);
     html+='<div class="tree-item tree-file">';
-    html+='<span class="tree-row">';
+    html+='<div class="tree-row">';
     html+='<span class="tree-file-indent"></span>';
     html+='<i class="'+getFileIcon(f.mime)+' tree-file-icon"></i>';
     html+='<span class="tree-name">'+escHtml(f.name)+'</span>';
     html+='<span class="tree-count">'+fmtSize(f.size)+'</span>';
-    html+='</span>';
     html+='<span class="tree-actions">';
     if(pk) html+='<button class="recv-file-preview" data-idx="'+idx+'" title="Aperçu"><i class="fa-solid fa-eye"></i></button>';
     html+='<button class="recv-file-dl" data-idx="'+idx+'" title="Télécharger"><i class="fa-solid fa-download"></i></button>';
     html+='</span>';
-    html+='</div>';
+    html+='</div></div>';
   });
   return html;
 }

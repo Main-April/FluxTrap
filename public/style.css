@@ -356,96 +356,95 @@ nav{display:flex;align-items:center;gap:4px}
 ══════════════════════════════════════ */
 .file-tree{
   border:1px solid var(--card-border);border-radius:14px;
-  background:rgba(10,9,20,0.6);overflow:hidden;
-  max-height:280px;overflow-y:auto;
+  background:rgba(10,9,20,0.55);overflow:hidden;
+  max-height:300px;overflow-y:auto;
 }
 .file-tree::-webkit-scrollbar{width:3px}
 .file-tree::-webkit-scrollbar-track{background:transparent}
-.file-tree::-webkit-scrollbar-thumb{background:rgba(183,122,255,0.25);border-radius:2px}
+.file-tree::-webkit-scrollbar-thumb{background:rgba(183,122,255,0.22);border-radius:2px}
 
-/* ── Ligne racine ── */
+/* ── Chaque item est une colonne : header + enfants en dessous ── */
 .tree-item{
-  display:flex;align-items:stretch;
+  display:flex;
+  flex-direction:column;
   position:relative;
 }
-/* séparateur léger entre items */
-.tree-item+.tree-item{border-top:1px solid rgba(255,255,255,0.032)}
+.tree-item+.tree-item{border-top:1px solid rgba(255,255,255,0.03)}
 
-/* ── Ligne principale : row + actions côte à côte ── */
+/* ── Header de la ligne (icône + nom + actions) ── */
 .tree-row{
-  display:flex;align-items:center;gap:0;
-  flex:1;min-width:0;
-  padding:0 10px 0 12px;
-  height:38px;
+  display:flex;align-items:center;
+  padding:0 8px 0 12px;
+  height:38px;min-height:38px;
   cursor:default;user-select:none;
   transition:background var(--anim);
+  gap:6px;
 }
 .tree-dir>.tree-row{cursor:pointer}
 .tree-dir>.tree-row:hover{background:rgba(183,122,255,0.07)}
-.tree-file>.tree-row:hover{background:rgba(255,255,255,0.025)}
+.tree-file>.tree-row:hover{background:rgba(255,255,255,0.03)}
 
 /* ── Chevron ── */
 .tree-chevron{
-  font-size:8px;color:var(--muted);
-  flex-shrink:0;width:16px;text-align:center;
+  font-size:8px;color:var(--muted);flex-shrink:0;
+  width:12px;text-align:center;
   transition:transform var(--anim),color var(--anim);
 }
 .tree-chevron.open{transform:rotate(90deg);color:var(--brand)}
-/* Espace réservé pour aligner les fichiers avec les dossiers */
-.tree-file-indent{width:16px;flex-shrink:0}
+
+/* Espace pour aligner les fichiers sur la même colonne que les dossiers */
+.tree-file-indent{width:12px;flex-shrink:0}
 
 /* ── Icônes ── */
 .tree-folder-icon{
-  font-size:14px;color:var(--brand);flex-shrink:0;
-  width:20px;text-align:center;
+  font-size:13px;color:var(--brand);flex-shrink:0;
+  width:18px;text-align:center;
   transition:color var(--anim);
 }
 .tree-file-icon{
-  font-size:13px;color:var(--muted);flex-shrink:0;
-  width:20px;text-align:center;
+  font-size:12px;color:var(--muted);flex-shrink:0;
+  width:18px;text-align:center;
 }
 
 /* ── Nom ── */
 .tree-name{
-  font-size:13px;font-weight:500;
+  font-size:13px;font-weight:500;color:var(--fg);
   flex:1;min-width:0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  color:var(--fg);
-  margin-left:7px;
 }
-.tree-file>.tree-row .tree-name{font-weight:400;color:var(--muted-2);font-size:12.5px}
+.tree-file>.tree-row .tree-name{
+  font-weight:400;font-size:12.5px;color:var(--muted-2);
+}
 
-/* ── Badge compteur/taille ── */
+/* ── Badge taille/count ── */
 .tree-count{
-  font-size:11px;color:var(--muted);
-  flex-shrink:0;font-variant-numeric:tabular-nums;
-  margin-left:8px;
-  background:rgba(255,255,255,0.04);
+  font-size:11px;color:var(--muted);flex-shrink:0;
+  font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,0.05);
   border-radius:4px;padding:1px 6px;
   white-space:nowrap;
 }
 
-/* ── Actions (dl, aperçu) ── */
+/* ── Actions (télécharger, aperçu) — visibles au hover ── */
 .tree-actions{
-  display:flex;align-items:center;gap:3px;
-  padding:0 8px 0 4px;flex-shrink:0;
+  display:flex;align-items:center;gap:4px;
+  flex-shrink:0;margin-left:4px;
   opacity:0;transition:opacity var(--anim);
 }
-.tree-item:hover .tree-actions{opacity:1}
+/* Sur mobile : toujours visible */
+@media(hover:none){.tree-actions{opacity:1}}
+.tree-item:hover>.tree-row .tree-actions,
+.tree-item:hover>.tree-row+.tree-actions{opacity:1}
 
-/* ── Enfants (sous-dossiers) ── */
+/* ── Enfants : en dessous du header, indentés ── */
 .tree-children{
-  /* ligne de guide verticale */
-  border-left:1px solid rgba(183,122,255,0.12);
-  margin-left:22px;
-  border-top:1px solid rgba(255,255,255,0.032);
+  border-left:1.5px solid rgba(183,122,255,0.14);
+  margin-left:19px;
 }
-.tree-children .tree-item+.tree-item{border-top:1px solid rgba(255,255,255,0.025)}
-/* indentation des lignes enfant */
-.tree-children>.tree-item>.tree-row{padding-left:10px}
+.tree-children>.tree-item+.tree-item{border-top:1px solid rgba(255,255,255,0.025)}
 
 /* ── Fichier actif (envoi en cours) ── */
-.tree-active>.tree-row{background:rgba(183,122,255,0.08)}
+.tree-active>.tree-row{background:rgba(183,122,255,0.09)}
 .tree-active>.tree-row .tree-name{color:var(--brand);font-weight:600}
 .tree-active>.tree-row::before{
   content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
@@ -453,7 +452,7 @@ nav{display:flex;align-items:center;gap:4px}
 }
 
 /* ── Arborescence reçue ── */
-.recv-tree{max-height:340px}
+.recv-tree{max-height:360px}
 
 /* ── Boutons action dans le tree ── */
 .recv-file-dl,.recv-file-preview{
@@ -462,6 +461,7 @@ nav{display:flex;align-items:center;gap:4px}
   border:none;cursor:pointer;font-size:11px;
   font-family:var(--font-sans);
   transition:background var(--anim),color var(--anim),transform var(--anim);
+  flex-shrink:0;
 }
 .recv-file-dl{background:var(--gradient-brand);color:#fff}
 .recv-file-dl:hover{opacity:.85;transform:scale(1.08)}
