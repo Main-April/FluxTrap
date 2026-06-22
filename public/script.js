@@ -177,23 +177,35 @@ function makeQR(t){
 // ══════════════════════════════════════════════
 
 function downloadBlob(blob, name){
-  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-  // Sur iOS, les blob: URL ne déclenchent pas de téléchargement direct — on passe par data: URL
+  var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)
+    ||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+
   if(isIOS){
-    var r=new FileReader();
-    r.onload=function(e){
-      var a=document.createElement('a');
-      a.href=e.target.result;
-      a.download=name;
-      a.style.display='none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){document.body.removeChild(a);},500);
-    };
-    r.readAsDataURL(blob);
+    // iOS (Safari ET Chrome iOS) : window.open sur blob: URL
+    // déclenche le popup natif "Enregistrer dans Fichiers"
+    var url=URL.createObjectURL(blob);
+    var w=window.open(url,'_blank');
+    // Si le popup est bloqué (rare), fallback data: URL dans l'onglet courant
+    if(!w){
+      var r=new FileReader();
+      r.onload=function(ev){
+        var a=document.createElement('a');
+        a.href=ev.target.result;
+        a.download=name;
+        a.target='_blank';
+        a.rel='noopener';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function(){document.body.removeChild(a);},500);
+      };
+      r.readAsDataURL(blob);
+    }
+    // Révoquer après délai pour laisser le temps au navigateur de lire
+    setTimeout(function(){URL.revokeObjectURL(url);},30000);
     return;
   }
-  // Tous les autres navigateurs : blob URL
+
+  // Desktop & Android : blob URL + <a download>
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
   a.href=url;
@@ -201,8 +213,7 @@ function downloadBlob(blob, name){
   a.style.display='none';
   document.body.appendChild(a);
   a.click();
-  // Révocation après délai pour que le téléchargement démarre
-  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); },5000);
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},5000);
 }
 
 // ══════════════════════════════════════════════
@@ -332,9 +343,16 @@ function renderRecvTree(node, depth){
 
 // Active les toggles d'un container
 function bindTreeToggles(container){
-  container.addEventListener('click',function(e){
+  // Gère click ET touchend pour mobile
+  // _tapped évite le double-déclenchement touch → click
+  var _tapped=false;
+
+  function toggleRow(e){
     var row=e.target.closest('[data-toggle]');
     if(!row) return;
+    // Ne pas interférer avec les boutons d'action
+    if(e.target.closest('button')) return;
+    e.preventDefault();
     var uid=row.getAttribute('data-toggle');
     var children=document.getElementById(uid);
     if(!children) return;
@@ -346,6 +364,19 @@ function bindTreeToggles(container){
     if(folderIcon){
       folderIcon.className=(open?'fa-solid fa-folder':'fa-solid fa-folder-open')+' tree-folder-icon';
     }
+  }
+
+  container.addEventListener('touchend',function(e){
+    var row=e.target.closest('[data-toggle]');
+    if(!row||e.target.closest('button')) return;
+    _tapped=true;
+    toggleRow(e);
+    setTimeout(function(){_tapped=false;},400);
+  },{passive:false});
+
+  container.addEventListener('click',function(e){
+    if(_tapped) return; // déjà géré par touchend
+    toggleRow(e);
   });
 }
 
@@ -796,13 +827,32 @@ function showRecvList(){
   if(box){
     box.innerHTML='<div class="file-tree recv-tree">'+renderRecvTreeNode(tree)+'</div>';
     bindTreeToggles(box);
-    // Actions télécharger / aperçu
-    box.addEventListener('click',function(e){
+
+    // Handler actions (dl / aperçu) — défini une seule fois via cloneNode
+    var newBox=box.cloneNode(true);
+    box.parentNode.replaceChild(newBox,box);
+    box=newBox;
+    // Remettre les toggles sur le nouveau nœud
+    bindTreeToggles(box);
+
+    function handleAction(e){
       var dl=e.target.closest('.recv-file-dl');
-      if(dl){ var idx=parseInt(dl.getAttribute('data-idx'),10); var f=recvFiles[idx]; if(f) downloadBlob(f.blob,f.name); return; }
+      if(dl){
+        e.preventDefault(); e.stopPropagation();
+        var idx=parseInt(dl.getAttribute('data-idx'),10);
+        var f=recvFiles[idx]; if(f) downloadBlob(f.blob,f.name);
+        return;
+      }
       var pv=e.target.closest('.recv-file-preview');
-      if(pv){ var idx=parseInt(pv.getAttribute('data-idx'),10); var f=recvFiles[idx]; if(!f) return; var k=getPreviewKind(f.mime); if(k) showPreviewModal(k,f.url,f.blob,f.name); }
-    },{once:false});
+      if(pv){
+        e.preventDefault(); e.stopPropagation();
+        var idx=parseInt(pv.getAttribute('data-idx'),10);
+        var f=recvFiles[idx]; if(!f) return;
+        var k=getPreviewKind(f.mime); if(k) showPreviewModal(k,f.url,f.blob,f.name);
+      }
+    }
+    box.addEventListener('click', handleAction);
+    box.addEventListener('touchend', handleAction, {passive:false});
   }
 
   // Bouton télécharger tout (1 seul fichier)
