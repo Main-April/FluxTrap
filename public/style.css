@@ -439,6 +439,7 @@ footer i.fa-heart{color:var(--brand);margin:0 2px}
 
 /* ── Responsive ── */
 @media(max-width:768px){
+  .page-inner{max-width:100%;padding:0 16px}
   .header-inner{max-width:100%;padding:12px 16px}
   .nav-link{display:none}
   .hero{max-width:none;padding-top:32px}

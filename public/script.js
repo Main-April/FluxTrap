@@ -683,7 +683,15 @@ function showRecvList(){
   }
   if(recvFiles.length===1){
     var last=recvFiles[0];
-    if(ui.recvDownload){ui.recvDownload.href=last.url;ui.recvDownload.download=last.name;ui.recvDownload.innerHTML='<i class="fa-solid fa-download"></i> Télécharger'}
+    if(ui.recvDownload){
+      ui.recvDownload.href=last.url;
+      ui.recvDownload.download=last.name;
+      ui.recvDownload.innerHTML='<i class="fa-solid fa-download"></i> Télécharger';
+      ui.recvDownload.onclick=function(e){
+        e.preventDefault();
+        downloadBlob(last.blob,last.name);
+      };
+    }
     show(ui.recvDownload);
   }else{
     hide(ui.recvDownload);
@@ -715,10 +723,7 @@ function showRecvList(){
 
 // ---- UI ----
 
-if(ui.recvDownload)ui.recvDownload.onclick=function(e){
-  e.preventDefault();
-  if(recvFiles.length===1)downloadBlob(recvFiles[0].blob,recvFiles[0].name);
-};
+// recvDownload click is handled inside showRecvList where recvFiles is current
 
 if(ui.codeDisplay)ui.codeDisplay.onclick=function(){
   if(SHARE_CODE){
